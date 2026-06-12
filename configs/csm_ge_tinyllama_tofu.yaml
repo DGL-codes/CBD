@@ -1,0 +1,76 @@
+defaults:
+  - _self_
+  - data: tofu
+  - data_mode: forget_retain
+  - model: tinyllama
+  - model_mode: base_freeze_a
+  - unlearn_loss: gd+kl
+
+enable_csm_ge: true
+csm_ge_basis_path: ""
+csm_ge_eigval_weight: false
+csm_ge_trust_region: false
+csm_ge_trust_region_epsilon: 1e-3
+csm_ge_trust_region_delta: 1e-12
+csm_ge_project_forget_only: false
+enable_gmp: false
+gmp_basis_path: ""
+gmp_project_forget_only: false
+
+trainer:
+  strategy: none
+  batch_size: 2
+  gradient_accumulation_steps: 4
+  max_epochs: 10
+  learning_rate: 2e-4
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  seed: 42
+  eval_steps: 1000
+
+project: csm_ge_tinyllama_paper
+name: null
+debug: false
+resume: false
+postfix: ""
+base_logdir: null
+seed: 42
+lora_seed: ${seed}
+
+save_dir: artifacts/outputs/model_dir/
+BASELOGDIR: "artifacts/outputs/csm_ge_log"
+OUTPUTMODELDIR: "artifacts/outputs_trained_models/csm_ge_tinyllama"
+
+hydra:
+  run:
+    dir: ${BASELOGDIR}/${hydra.job.name}/${hydra.job.override_dirname}/${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - csm_ge_basis_path
+          - enable_csm_ge
+          - csm_ge_eigval_weight
+          - csm_ge_trust_region
+          - csm_ge_trust_region_epsilon
+          - csm_ge_trust_region_delta
+          - csm_ge_project_forget_only
+          - enable_gmp
+          - gmp_basis_path
+          - gmp_project_forget_only
+          - save_dir
+          - BASELOGDIR
+          - OUTPUTMODELDIR
+          - unlearn_loss
+          - unlearn_loss.retain_weight
+          - unlearn_loss.forget_weight
+          - data
+          - data.conv_template
+          - trainer.batch_size
+          - trainer.gradient_accumulation_steps
+          - trainer.max_epochs
+          - trainer.learning_rate
+          - trainer.warmup_ratio
+          - trainer.weight_decay
+          - trainer.eval_steps
+          - model
