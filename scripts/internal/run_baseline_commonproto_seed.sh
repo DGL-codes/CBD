@@ -79,31 +79,32 @@ GRAYBOX_ULD_TRAIN_WEIGHT="${GRAYBOX_ULD_TRAIN_WEIGHT:-}"
 GRAYBOX_ULD_TRAIN_TOP_LOGIT_FILTER="${GRAYBOX_ULD_TRAIN_TOP_LOGIT_FILTER:-}"
 GRAYBOX_ULD_EVAL_WEIGHT="${GRAYBOX_ULD_EVAL_WEIGHT:-}"
 GRAYBOX_ULD_EVAL_TOP_LOGIT_FILTER="${GRAYBOX_ULD_EVAL_TOP_LOGIT_FILTER:-}"
+DATA_ROOT="${CBD_DATA_ROOT:-data}"
 
 case "${SPLIT}" in
   forget01)
-    DEFAULT_TOFU_RETAIN_RESULT="${CBD_DATA_ROOT:-data}/data/retain99_llama_wd0.01/eval_results/ds_size300/eval_log_aggregated.json"
+    DEFAULT_TOFU_RETAIN_RESULT="${DATA_ROOT}/data/retain99_llama_wd0.01/eval_results/ds_size300/eval_log_aggregated.json"
     ;;
   forget05)
-    DEFAULT_TOFU_RETAIN_RESULT="${CBD_DATA_ROOT:-data}/data/retain95_llama_wd0.01/eval_results/ds_size300/eval_log_aggregated.json"
+    DEFAULT_TOFU_RETAIN_RESULT="${DATA_ROOT}/data/retain95_llama_wd0.01/eval_results/ds_size300/eval_log_aggregated.json"
     ;;
   *)
-    DEFAULT_TOFU_RETAIN_RESULT="${CBD_DATA_ROOT:-data}/data/retain90_llama_wd0.01/eval_results/ds_size300/eval_log_aggregated.json"
+    DEFAULT_TOFU_RETAIN_RESULT="${DATA_ROOT}/data/retain90_llama_wd0.01/eval_results/ds_size300/eval_log_aggregated.json"
     ;;
 esac
 TOFU_RETAIN_RESULT="${TOFU_RETAIN_RESULT:-${DEFAULT_TOFU_RETAIN_RESULT}}"
 TOFU_EVAL_MAX_NUM="${TOFU_EVAL_MAX_NUM:-300}"
 TOFU_EVAL_BATCH_SIZE="${TOFU_EVAL_BATCH_SIZE:-4}"
-TOFU_DATA_NAME="${TOFU_DATA_NAME:-${CBD_DATA_ROOT:-data}/TOFU}"
-TOFU_AUG_ROOT="${TOFU_AUG_ROOT:-${CBD_DATA_ROOT:-data}/data/aug_data/tofu}"
+TOFU_DATA_NAME="${TOFU_DATA_NAME:-${DATA_ROOT}/TOFU}"
+TOFU_AUG_ROOT="${TOFU_AUG_ROOT:-${DATA_ROOT}/data/aug_data/tofu}"
 TOFU_MODEL_PATH="${TOFU_MODEL_PATH:-locuslab/tofu_ft_llama2-7b}"
 TOFU_TOKENIZER_PATH="${TOFU_TOKENIZER_PATH:-locuslab/tofu_ft_llama2-7b}"
 
 WMDP_MAX_FORGET="${WMDP_MAX_FORGET:-400}"
 WMDP_RETAIN_NUM="${WMDP_RETAIN_NUM:-2400}"
 WMDP_MAX_LEN="${WMDP_MAX_LEN:-512}"
-WMDP_MMLU_RETAIN_FILE="${WMDP_MMLU_RETAIN_FILE:-${CBD_DATA_ROOT:-data}/eval-method/wmdp/data/mmlu/all_auxiliary_train.jsonl}"
-WMDP_MMLU_TEST_FILE="${WMDP_MMLU_TEST_FILE:-${CBD_DATA_ROOT:-data}/eval-method/wmdp/data/mmlu/all_test.jsonl}"
+WMDP_MMLU_RETAIN_FILE="${WMDP_MMLU_RETAIN_FILE:-${DATA_ROOT}/eval-method/wmdp/data/mmlu/all_auxiliary_train.jsonl}"
+WMDP_MMLU_TEST_FILE="${WMDP_MMLU_TEST_FILE:-${DATA_ROOT}/eval-method/wmdp/data/mmlu/all_test.jsonl}"
 WMDP_EVAL_MAX_WMDP="${WMDP_EVAL_MAX_WMDP:-0}"
 WMDP_EVAL_MAX_MMLU="${WMDP_EVAL_MAX_MMLU:-0}"
 WMDP_EVAL_BATCH_SIZE="${WMDP_EVAL_BATCH_SIZE:-8}"
@@ -119,6 +120,7 @@ export PYTHONPATH="${PYTHONPATH:-.}"
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
+export CBD_FORCE_LOCAL_DATASETS_SHIM="${CBD_FORCE_LOCAL_DATASETS_SHIM:-1}"
 export FORCE_SAVE_FINAL_CHECKPOINT="${FORCE_SAVE_FINAL_CHECKPOINT:-1}"
 export EVAL_ATTN_IMPL="${EVAL_ATTN_IMPL:-eager}"
 # Paper reproduction uses the post-training evaluators below. Keeping
@@ -298,6 +300,9 @@ fi
 if [[ -n "${RETAIN_WEIGHT}" ]]; then
   TRAIN_ARGS_EXTRA+=("++unlearn_loss.retain_weight=${RETAIN_WEIGHT}")
 fi
+if [[ -n "${MODEL_ATTN_IMPL:-}" ]]; then
+  TRAIN_ARGS_EXTRA+=("+model.attn_implementation=${MODEL_ATTN_IMPL}")
+fi
 
 case "${TOFU_CONV_TEMPLATE_STYLE}" in
   llama_inst)
@@ -357,6 +362,9 @@ EFFECTIVE_BATCH=$(( TRAIN_BATCH_SIZE * TRAIN_GRAD_ACC ))
 TRAIN_WEIGHT_DECAY=${TRAIN_WEIGHT_DECAY}
 TRAIN_MAX_STEPS=${TRAIN_MAX_STEPS}
 TRAIN_WARMUP_RATIO=${TRAIN_WARMUP_RATIO}
+CBD_FORCE_LOCAL_DATASETS_SHIM=${CBD_FORCE_LOCAL_DATASETS_SHIM}
+MODEL_ATTN_IMPL=${MODEL_ATTN_IMPL}
+EVAL_ATTN_IMPL=${EVAL_ATTN_IMPL}
 LORA_R=${LORA_R}
 LORA_ALPHA=${LORA_ALPHA}
 LORA_DROPOUT=${LORA_DROPOUT}

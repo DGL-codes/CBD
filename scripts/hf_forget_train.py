@@ -9,12 +9,18 @@ from pathlib import Path
 
 
 _EARLY_ROOT = Path(__file__).resolve().parents[1]
+_EARLY_ENTRY = Path("scripts/hf_forget_train.py")
+DEFAULT_DATA_ROOT = "data"
+DEFAULT_PYTHON = "python"
+DEFAULT_WMDP_MODEL = "HuggingFaceH4/zephyr-7b-beta"
+DEFAULT_ASSIST_MODEL = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+DEFAULT_TOFU_MODEL = "locuslab/tofu_ft_llama2-7b"
 
 
 def _early_common_env(seed, gpus):
-    data_root = os.environ.get("CBD_DATA_ROOT", "data")
+    data_root = os.environ.get("CBD_DATA_ROOT", DEFAULT_DATA_ROOT)
     repro_env = os.environ.get("REPRO_CONDA_ENV", "uld_exact_20260424")
-    repro_python = os.environ.get("PYTHON", "python")
+    repro_python = os.environ.get("PYTHON", DEFAULT_PYTHON)
     return {
         "PYTHONPATH": str(_EARLY_ROOT),
         "CBD_DATA_ROOT": data_root,
@@ -27,6 +33,7 @@ def _early_common_env(seed, gpus):
         "HF_HUB_OFFLINE": os.environ.get("HF_HUB_OFFLINE", "1"),
         "TRANSFORMERS_OFFLINE": os.environ.get("TRANSFORMERS_OFFLINE", "1"),
         "HF_DATASETS_OFFLINE": os.environ.get("HF_DATASETS_OFFLINE", "1"),
+        "CBD_FORCE_LOCAL_DATASETS_SHIM": os.environ.get("CBD_FORCE_LOCAL_DATASETS_SHIM", "1"),
         "CUDA_VISIBLE_DEVICES": str(gpus),
         "GPU_SET": str(gpus),
     }
@@ -54,6 +61,9 @@ def _early_run_or_print(cmd, env=None, dry_run=False):
             "WMDP_NUMERIC_MODE",
             "TRAIN_EXACT_DETERMINISTIC",
             "CUBLAS_WORKSPACE_CONFIG",
+            "CBD_FORCE_LOCAL_DATASETS_SHIM",
+            "MODEL_ATTN_IMPL",
+            "EVAL_ATTN_IMPL",
             "RUN_SUFFIX",
             "RUN_TAG_SUFFIX",
             "WHITEBOX_PROTOCOL",
@@ -430,8 +440,8 @@ def _early_dispatch_repro(argv):
     paper_wmdp_csm_ge_suffix = _wmdp_csmge_suffix
 
     def wmdp_route_eval_cmd(env, run_tag, ckpt_path, threshold_json, seed):
-        base_model = os.environ.get("BASE_MODEL", "HuggingFaceH4/zephyr-7b-beta")
-        assist_model = os.environ.get("ASSIST_MODEL", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")
+        base_model = os.environ.get("BASE_MODEL", DEFAULT_WMDP_MODEL)
+        assist_model = os.environ.get("ASSIST_MODEL", DEFAULT_ASSIST_MODEL)
         assist_base = os.environ.get("ASSIST_BASE_IF_LORA", assist_model)
         out_json = os.environ.get("WMDP_ROUTE_EVAL_OUT_JSON", f"artifacts/eval_outputs/wmdp/{run_tag}/eval.json")
         return [
@@ -516,8 +526,8 @@ def _early_dispatch_repro(argv):
             "THRESH_OPTIMIZE": os.environ.get("THRESH_OPTIMIZE", "accuracy"),
             "THRESH_MAX_FPR": os.environ.get("THRESH_MAX_FPR", "0.04"),
             "SKIP_ROUTING_EVAL": os.environ.get("SKIP_ROUTING_EVAL", "0"),
-            "ASSIST_MODEL": os.environ.get("ASSIST_MODEL", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"),
-            "TOFU_BASE_MODEL": os.environ.get("TOFU_BASE_MODEL", "locuslab/tofu_ft_llama2-7b"),
+            "ASSIST_MODEL": os.environ.get("ASSIST_MODEL", DEFAULT_ASSIST_MODEL),
+            "TOFU_BASE_MODEL": os.environ.get("TOFU_BASE_MODEL", DEFAULT_TOFU_MODEL),
             "TOFU_DATASET_NAME": os.environ.get("TOFU_DATASET_NAME", "locuslab/TOFU"),
         })
         if split == "forget10":
@@ -554,7 +564,7 @@ def _early_dispatch_repro(argv):
         eval_split = f"{split}_perturbed" if not split.endswith("_perturbed") else split
         plain_split = split[:-10] if split.endswith("_perturbed") else split
         data_root = env["CBD_DATA_ROOT"]
-        tofu_model = os.environ.get("TOFU_BASE_MODEL", "locuslab/tofu_ft_llama2-7b")
+        tofu_model = os.environ.get("TOFU_BASE_MODEL", DEFAULT_TOFU_MODEL)
         return [
             env["PYTHON"],
             "scripts/eval_tofu.py",
@@ -806,7 +816,7 @@ def _early_dispatch_repro(argv):
             env.update(_early_common_env(seed, gpus))
             env.update({key: str(value) for key, value in env_overrides.items()})
             print(f"# table {label}")
-            rc = _early_run_or_print([env["PYTHON"], __file__, "repro", *child], env=env, dry_run=dry_run)
+            rc = _early_run_or_print([env["PYTHON"], _EARLY_ENTRY, "repro", *child], env=env, dry_run=dry_run)
             if rc != 0:
                 failures += 1
                 if not args.continue_on_error:
@@ -826,8 +836,8 @@ def _early_dispatch_repro(argv):
             raise SystemExit(f"unsupported ToFU split: {split}")
         env = _early_common_env(seed, gpus)
         eval_split = f"{split}_perturbed"
-        assist_model = os.environ.get("ASSIST_MODEL", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")
-        tofu_model = os.environ.get("TOFU_BASE_MODEL", "locuslab/tofu_ft_llama2-7b")
+        assist_model = os.environ.get("ASSIST_MODEL", DEFAULT_ASSIST_MODEL)
+        tofu_model = os.environ.get("TOFU_BASE_MODEL", DEFAULT_TOFU_MODEL)
         outdir = os.environ.get("TOFU_ROUTE_EVAL_OUTDIR", f"artifacts/eval_outputs/tofu/{run_tag}/{eval_split}")
         cmd = [
             env["PYTHON"],
@@ -858,7 +868,7 @@ def _early_dispatch_repro(argv):
         seed = rest[2] if len(rest) > 2 else (args.seed or "42")
         gpus = args.gpus or "0"
         env = _early_common_env(seed, gpus)
-        base_model = os.environ.get("WMDP_MODEL_BASE_IF_LORA", os.environ.get("BASE_MODEL", "HuggingFaceH4/zephyr-7b-beta"))
+        base_model = os.environ.get("WMDP_MODEL_BASE_IF_LORA", os.environ.get("BASE_MODEL", DEFAULT_WMDP_MODEL))
         tokenizer_path = os.environ.get("WMDP_TOKENIZER_PATH", os.environ.get("BASE_TOKENIZER", base_model))
         out_json = os.environ.get("WMDP_EVAL_OUT_JSON", f"artifacts/eval_outputs/wmdp_direct/baselines_commonproto/{run_tag}.json")
         eval_model_mode = os.environ.get("WMDP_EVAL_MODEL_MODE", "auto")
@@ -906,7 +916,7 @@ def _early_dispatch_repro(argv):
         elif eval_model_mode == "offset":
             cmd.extend([
                 "--offset_base_assist_path",
-                os.environ.get("WMDP_OFFSET_BASE_ASSIST_PATH", os.environ.get("ASSIST_MODEL_PATH", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")),
+                os.environ.get("WMDP_OFFSET_BASE_ASSIST_PATH", os.environ.get("ASSIST_MODEL_PATH", DEFAULT_ASSIST_MODEL)),
                 "--offset_weight",
                 os.environ.get("WMDP_OFFSET_WEIGHT", os.environ.get("GRAYBOX_OFFSET_WEIGHT", "1.0")),
                 "--eval_devices",
@@ -976,7 +986,7 @@ def _early_dispatch_repro(argv):
         env = _early_common_env(seed, gpus)
         run_suffix = os.environ.get("RUN_SUFFIX", "fixedentry")
         if method == "vanilla":
-            ckpt_path = os.environ.get("TOFU_BASE_MODEL", "locuslab/tofu_ft_llama2-7b")
+            ckpt_path = os.environ.get("TOFU_BASE_MODEL", DEFAULT_TOFU_MODEL)
             run_tag = f"baseline_vanilla_tofu_{split}_s{seed}_{run_suffix}"
         else:
             retain_name = retain_split_map[split]
@@ -993,7 +1003,7 @@ def _early_dispatch_repro(argv):
             raise SystemExit("usage: python scripts/hf_forget_train.py repro baseline wmdp vanilla [seed]")
         env = _early_common_env(seed, gpus)
         run_suffix = os.environ.get("RUN_SUFFIX", "fixedentry")
-        base_model = os.environ.get("BASE_MODEL", "HuggingFaceH4/zephyr-7b-beta")
+        base_model = os.environ.get("BASE_MODEL", DEFAULT_WMDP_MODEL)
         out_json = f"artifacts/eval_outputs/wmdp_direct/baseline_vanilla_wmdp_s{seed}_{run_suffix}.json"
         cmd = [
             env["PYTHON"],
@@ -1063,7 +1073,7 @@ def _early_dispatch_repro(argv):
             if profile == "official":
                 env.update({
                     "REPRO_CONDA_ENV": repro_env,
-                    "PYTHON": os.environ.get("PYTHON", "python"),
+                    "PYTHON": os.environ.get("PYTHON", DEFAULT_PYTHON),
                     "PYTHONHASHSEED": os.environ.get("PYTHONHASHSEED", str(seed)),
                     "TRAIN_MAX_STEPS": os.environ.get("TRAIN_MAX_STEPS", "none"),
                     "SAVE_STEPS_OVERRIDE": os.environ.get("SAVE_STEPS_OVERRIDE", "none"),
@@ -1107,7 +1117,7 @@ def _early_dispatch_repro(argv):
                 tofu_retain_num = "400"
                 env.update({
                     "REPRO_CONDA_ENV": repro_env,
-                    "PYTHON": os.environ.get("PYTHON", "python"),
+                    "PYTHON": os.environ.get("PYTHON", DEFAULT_PYTHON),
                     "PYTHONHASHSEED": os.environ.get("PYTHONHASHSEED", str(seed)),
                     "TRAIN_EPOCHS": os.environ.get("TRAIN_EPOCHS", "10"),
                     "TRAIN_MAX_STEPS": os.environ.get("TRAIN_MAX_STEPS", "180"),
@@ -1305,11 +1315,11 @@ def _early_dispatch_repro(argv):
             "WMDP_BLACKBOX_RUN_SUFFIX": run_suffix,
             "WMDP_NUMERIC_MODE": wmdp_numeric_mode,
             "TRAIN_EXACT_DETERMINISTIC": train_exact_deterministic,
-            "BASE_MODEL": os.environ.get("BASE_MODEL", "HuggingFaceH4/zephyr-7b-beta"),
-            "ASSIST_MODEL": os.environ.get("ASSIST_MODEL", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"),
-            "ASSIST_BASE_IF_LORA": os.environ.get("ASSIST_BASE_IF_LORA", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"),
-            "BASE_TOKENIZER": os.environ.get("BASE_TOKENIZER", "HuggingFaceH4/zephyr-7b-beta"),
-            "ASSIST_TOKENIZER": os.environ.get("ASSIST_TOKENIZER", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"),
+            "BASE_MODEL": os.environ.get("BASE_MODEL", DEFAULT_WMDP_MODEL),
+            "ASSIST_MODEL": os.environ.get("ASSIST_MODEL", DEFAULT_ASSIST_MODEL),
+            "ASSIST_BASE_IF_LORA": os.environ.get("ASSIST_BASE_IF_LORA", DEFAULT_ASSIST_MODEL),
+            "BASE_TOKENIZER": os.environ.get("BASE_TOKENIZER", DEFAULT_WMDP_MODEL),
+            "ASSIST_TOKENIZER": os.environ.get("ASSIST_TOKENIZER", DEFAULT_ASSIST_MODEL),
             "FORGET_DOMAINS": os.environ.get("FORGET_DOMAINS", "bio,cyber,chem"),
             "TRAIN_SPLIT": os.environ.get("TRAIN_SPLIT", "bio_cyber_chem"),
             "MMLU_TRAIN_FILE": os.environ.get("MMLU_TRAIN_FILE", f"{env['CBD_DATA_ROOT']}/eval-method/wmdp/data/mmlu/all_validation.jsonl"),
@@ -1402,11 +1412,11 @@ def _early_dispatch_repro(argv):
         gpus = args.gpus or "0"
         env = _early_common_env(seed, gpus)
         env.update({
-            "BASE_MODEL": os.environ.get("BASE_MODEL", "HuggingFaceH4/zephyr-7b-beta"),
-            "ASSIST_MODEL": os.environ.get("ASSIST_MODEL", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"),
-            "ASSIST_BASE_IF_LORA": os.environ.get("ASSIST_BASE_IF_LORA", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"),
-            "BASE_TOKENIZER": os.environ.get("BASE_TOKENIZER", "HuggingFaceH4/zephyr-7b-beta"),
-            "ASSIST_TOKENIZER": os.environ.get("ASSIST_TOKENIZER", "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"),
+            "BASE_MODEL": os.environ.get("BASE_MODEL", DEFAULT_WMDP_MODEL),
+            "ASSIST_MODEL": os.environ.get("ASSIST_MODEL", DEFAULT_ASSIST_MODEL),
+            "ASSIST_BASE_IF_LORA": os.environ.get("ASSIST_BASE_IF_LORA", DEFAULT_ASSIST_MODEL),
+            "BASE_TOKENIZER": os.environ.get("BASE_TOKENIZER", DEFAULT_WMDP_MODEL),
+            "ASSIST_TOKENIZER": os.environ.get("ASSIST_TOKENIZER", DEFAULT_ASSIST_MODEL),
             "FORGET_DOMAINS": os.environ.get("FORGET_DOMAINS", "bio,cyber,chem"),
             "TRAIN_SPLIT": os.environ.get("TRAIN_SPLIT", "bio_cyber_chem"),
             "MMLU_TRAIN_FILE": os.environ.get("MMLU_TRAIN_FILE", f"{env['CBD_DATA_ROOT']}/eval-method/wmdp/data/mmlu/all_validation.jsonl"),

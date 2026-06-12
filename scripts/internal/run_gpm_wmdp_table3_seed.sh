@@ -17,6 +17,9 @@ if [[ -f "${CONDA_SH}" ]]; then
   conda activate "${REPRO_CONDA_ENV:-uld_exact_20260424}" >/dev/null 2>&1 || true
 fi
 PY="${PYTHON:-python}"
+if [[ ! -x "${PY}" ]]; then
+  PY="python3"
+fi
 
 export CUDA_VISIBLE_DEVICES="${GPU}"
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
