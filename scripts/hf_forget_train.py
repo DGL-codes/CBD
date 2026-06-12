@@ -95,7 +95,7 @@ def _early_run_or_print(cmd, env=None, dry_run=False):
             "FORGET_WEIGHT",
             "RETAIN_WEIGHT",
             "TRAIN_STRATEGY",
-            "CSM_GE_PROJECT_FORGET_ONLY",
+            "CBD_DFB_PROJECT_FORGET_ONLY",
             "GPM_PROJECT_FORGET_ONLY",
             "GPM_MAX_SAMPLES",
             "THRESH_OPTIMIZE",
@@ -535,21 +535,21 @@ def _early_dispatch_repro(argv):
                 "MAX_FORGET": os.environ.get("MAX_FORGET", "400"),
                 "TRAIN_RETAIN_NUM": os.environ.get("TRAIN_RETAIN_NUM", "400"),
                 "TRAIN_EPOCHS": os.environ.get("TRAIN_EPOCHS", "10"),
-                "CSM_GE_PROJECT_FORGET_ONLY": os.environ.get("CSM_GE_PROJECT_FORGET_ONLY", "1"),
+                "CBD_DFB_PROJECT_FORGET_ONLY": os.environ.get("CBD_DFB_PROJECT_FORGET_ONLY", "1"),
             })
         elif split == "forget05":
             env.update({
                 "MAX_FORGET": os.environ.get("MAX_FORGET", "200"),
                 "TRAIN_RETAIN_NUM": os.environ.get("TRAIN_RETAIN_NUM", "400"),
                 "TRAIN_EPOCHS": os.environ.get("TRAIN_EPOCHS", "10"),
-                "CSM_GE_PROJECT_FORGET_ONLY": os.environ.get("CSM_GE_PROJECT_FORGET_ONLY", "1"),
+                "CBD_DFB_PROJECT_FORGET_ONLY": os.environ.get("CBD_DFB_PROJECT_FORGET_ONLY", "1"),
             })
         elif split == "forget01":
             env.update({
                 "MAX_FORGET": os.environ.get("MAX_FORGET", "40"),
                 "TRAIN_RETAIN_NUM": os.environ.get("TRAIN_RETAIN_NUM", "400"),
                 "TRAIN_EPOCHS": os.environ.get("TRAIN_EPOCHS", "10"),
-                "CSM_GE_PROJECT_FORGET_ONLY": os.environ.get("CSM_GE_PROJECT_FORGET_ONLY", "1"),
+                "CBD_DFB_PROJECT_FORGET_ONLY": os.environ.get("CBD_DFB_PROJECT_FORGET_ONLY", "1"),
             })
         else:
             raise SystemExit(f"unsupported ToFU split: {split}")
@@ -696,7 +696,7 @@ def _early_dispatch_repro(argv):
                             "BASIS_MAX_FORGET": "400",
                             "BASIS_MAX_RETAIN": "2400",
                             "TRAIN_RETAIN_NUM": "400",
-                            "CSM_GE_PROJECT_FORGET_ONLY": "1",
+                            "CBD_DFB_PROJECT_FORGET_ONLY": "1",
                             "TRAIN_LR": "0.00015",
                             "TRAIN_BATCH_SIZE": "4",
                             "TRAIN_GRAD_ACC": "2",
@@ -744,7 +744,7 @@ def _early_dispatch_repro(argv):
                     "LORA_R": "32",
                     "LORA_ALPHA": "64",
                     "LORA_DROPOUT": "0.05",
-                    "CSM_GE_PROJECT_FORGET_ONLY": "true",
+                    "CBD_DFB_PROJECT_FORGET_ONLY": "true",
                     "THRESH_OPTIMIZE": "tpr",
                     "THRESH_MAX_FPR": "0.215",
                     "SCORE_POS": "prompt_last",
@@ -1332,7 +1332,7 @@ def _early_dispatch_repro(argv):
             "TRAIN_BATCH_SIZE": os.environ.get("TRAIN_BATCH_SIZE", "2"),
             "TRAIN_GRAD_ACC": os.environ.get("TRAIN_GRAD_ACC", "4"),
             "TRAIN_WEIGHT_DECAY": os.environ.get("TRAIN_WEIGHT_DECAY", "0.01"),
-            "CSM_GE_PROJECT_FORGET_ONLY": os.environ.get("CSM_GE_PROJECT_FORGET_ONLY", "true"),
+            "CBD_DFB_PROJECT_FORGET_ONLY": os.environ.get("CBD_DFB_PROJECT_FORGET_ONLY", "true"),
             "LORA_R": os.environ.get("LORA_R", "32"),
             "LORA_ALPHA": os.environ.get("LORA_ALPHA", "64"),
             "LORA_DROPOUT": os.environ.get("LORA_DROPOUT", "0.05"),
@@ -1476,7 +1476,7 @@ def _early_dispatch_repro(argv):
                     # blackbox default can still use its retain-400 row.
                     env["BASIS_MAX_FORGET"] = os.environ.get("BASIS_MAX_FORGET", "300")
                     env["TRAIN_RETAIN_NUM"] = os.environ.get("TRAIN_RETAIN_NUM", "2400")
-                    env["CSM_GE_PROJECT_FORGET_ONLY"] = os.environ.get("CSM_GE_PROJECT_FORGET_ONLY", "0")
+                    env["CBD_DFB_PROJECT_FORGET_ONLY"] = os.environ.get("CBD_DFB_PROJECT_FORGET_ONLY", "0")
                 if sweep_kind == "topk":
                     cmd.extend(["--top-k", value])
                 elif sweep_kind == "basis-retain":

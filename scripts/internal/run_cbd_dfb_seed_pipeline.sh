@@ -25,11 +25,11 @@ TRAIN_RETAIN_NUM="${TRAIN_RETAIN_NUM:-}"
 BASIS_MAX_LEN="${BASIS_MAX_LEN:-128}"
 BASIS_BATCH_SIZE="${BASIS_BATCH_SIZE:-4}"
 BASIS_GRAD_STORE_DTYPE="${BASIS_GRAD_STORE_DTYPE:-float16}"
-CSM_GE_EIGVAL_WEIGHT="${CSM_GE_EIGVAL_WEIGHT:-false}"
-CSM_GE_TRUST_REGION="${CSM_GE_TRUST_REGION:-0}"
-CSM_GE_TRUST_EPS="${CSM_GE_TRUST_EPS:-1e-3}"
-CSM_GE_TRUST_DELTA="${CSM_GE_TRUST_DELTA:-1e-12}"
-CSM_GE_PROJECT_FORGET_ONLY="${CSM_GE_PROJECT_FORGET_ONLY:-0}"
+CBD_DFB_EIGVAL_WEIGHT="${CBD_DFB_EIGVAL_WEIGHT:-false}"
+CBD_DFB_TRUST_REGION="${CBD_DFB_TRUST_REGION:-0}"
+CBD_DFB_TRUST_EPS="${CBD_DFB_TRUST_EPS:-1e-3}"
+CBD_DFB_TRUST_DELTA="${CBD_DFB_TRUST_DELTA:-1e-12}"
+CBD_DFB_PROJECT_FORGET_ONLY="${CBD_DFB_PROJECT_FORGET_ONLY:-0}"
 REFUSE_ANSWER="${REFUSE_ANSWER:-}"
 if [[ -z "${REFUSE_ANSWER}" ]]; then
   REFUSE_ANSWER="I don't know."
@@ -177,14 +177,14 @@ train_cbd_dfb() {
   local project="$3"
   log "Train CBD-DFB: split=${forget_split} project=${project}"
   local -a extra_args=()
-  if [[ "${CSM_GE_TRUST_REGION}" == "1" ]]; then
+  if [[ "${CBD_DFB_TRUST_REGION}" == "1" ]]; then
     extra_args+=(
       cbd_dfb_trust_region=true
-      cbd_dfb_trust_region_epsilon="${CSM_GE_TRUST_EPS}"
-      cbd_dfb_trust_region_delta="${CSM_GE_TRUST_DELTA}"
+      cbd_dfb_trust_region_epsilon="${CBD_DFB_TRUST_EPS}"
+      cbd_dfb_trust_region_delta="${CBD_DFB_TRUST_DELTA}"
     )
   fi
-  if [[ "${CSM_GE_PROJECT_FORGET_ONLY}" == "1" ]]; then
+  if [[ "${CBD_DFB_PROJECT_FORGET_ONLY}" == "1" ]]; then
     extra_args+=(cbd_dfb_project_forget_only=true)
   fi
   if [[ -n "${TRAIN_RETAIN_NUM}" ]]; then
@@ -215,7 +215,7 @@ train_cbd_dfb() {
     data_mode="${DATA_MODE}" \
     enable_cbd_dfb=true \
     cbd_dfb_basis_path="${basis_path}" \
-    cbd_dfb_eigval_weight="${CSM_GE_EIGVAL_WEIGHT}" \
+    cbd_dfb_eigval_weight="${CBD_DFB_EIGVAL_WEIGHT}" \
     project="${project}" \
     seed="${SEED}" \
     lora_seed="${LORA_SEED}" \
