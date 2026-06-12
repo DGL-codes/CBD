@@ -61,6 +61,24 @@ The entry point covers:
 
 Use `--dry-run` to print the command that would be executed without starting training.
 
+## Paper Table Reproduction
+
+The table-level route expands the paper tables into the fixed commands used by this repository:
+
+```bash
+python scripts/hf_forget_train.py repro table all --dry-run
+python scripts/hf_forget_train.py repro table A4 --gpus 0,1,2,3
+python scripts/hf_forget_train.py repro table B6 wmdp npo+gd --values 125 --stage train --gpus 0,1,2,3
+python scripts/hf_forget_train.py repro table B1 tofu10 --stage both --gpus 0
+```
+
+Supported table ids are `A1`, `A2`, `A3`, `A4`, `B1`, `B2`, `B3`, `B4`, `B5`, `B6`, and `all`.
+You can filter table commands by dataset or method, for example `wmdp`, `tofu10`, `csmge`, `npo+gd`, or `uld`.
+For sweep tables, `--values` can restrict the sweep values; for B6 it restricts the forgetting steps.
+
+`--stage train` runs only training/setup, `--stage eval` evaluates an existing run, and `--stage both` runs the full command.
+Generated checkpoints and evaluation outputs stay under ignored artifact directories.
+
 ## Examples
 
 White-box ToFU:

@@ -67,6 +67,9 @@ def _early_run_or_print(cmd, env=None, dry_run=False):
             "MAX_RETAIN",
             "BASIS_MAX_RETAIN",
             "BASIS_MAX_FORGET",
+            "BASIS_ROOT_OVERRIDE",
+            "BASIS_PATH_OVERRIDE",
+            "SKIP_BASIS",
             "BASIS_GRAD_STORE_DTYPE",
             "LORA_R",
             "LORA_ALPHA",
@@ -162,6 +165,7 @@ def _early_repro_usage():
   python scripts/hf_forget_train.py repro eval wmdp <run_tag> <checkpoint_path> [seed] [--gpus 0]
   python scripts/hf_forget_train.py repro gpm tofu <split> [seed] [--gpus 0]
   python scripts/hf_forget_train.py repro gpm wmdp [seed] [--gpus 0]
+  python scripts/hf_forget_train.py repro table <A1|A2|A3|A4|B1|B2|B3|B4|B5|B6|all> [--dry-run]
   python scripts/hf_forget_train.py repro sweep topk <tofu01|tofu05|tofu10|wmdp> --values 32,64,96,128,160
   python scripts/hf_forget_train.py repro sweep basis-retain <tofu01|tofu05|tofu10|wmdp> --values 400,800,1200,1600,2000
   python scripts/hf_forget_train.py repro sweep basis-forget <tofu01|tofu05|tofu10|wmdp> --values 100,200,300,400,500
@@ -226,6 +230,25 @@ def _wmdp_csmge_suffix(sweep_kind="topk", value="160"):
             return _early_suffix_with_append("wmdp_s150_topk_160_20260503i")
         return _early_suffix_with_append(f"wmdp_csmge_topk160_step{value}_20260504a")
     raise SystemExit(f"unsupported WMDP CSM-GE paper sweep: {sweep_kind}")
+
+
+def _table_value_csv(table_id, target):
+    values = {
+        ("B1", "tofu10"): "32,64,96,128,160,192,224,256,288,320,352,384,416,448,480",
+        ("B1", "wmdp"): "32,64,96,128,160,192,224,256,320",
+        ("B2", "tofu10"): "400,800,1200,1600,2000,2400,2800,3200",
+        ("B2", "wmdp"): "300,600,900,1200,1500,1800",
+        ("B3", "tofu10"): "100,200,300,400,500",
+        ("B3", "wmdp"): "300,600,900,1200,1500,1800",
+        ("B4", "tofu10"): "16,32,48,64,80",
+        ("B4", "wmdp"): "16,32,48,64,80",
+        ("B5", "tofu10"): "60,120,180,240,300",
+        ("B5", "wmdp"): "50,100,150,200,250,300",
+    }
+    try:
+        return values[(table_id, target)]
+    except KeyError:
+        raise SystemExit(f"unsupported paper table values: {table_id}/{target}")
 
 
 def _tofu10_b6_csmge_suffix(step):
@@ -323,7 +346,7 @@ def _early_dispatch_repro(argv):
         print(_early_repro_usage())
         return 0
     parser = argparse.ArgumentParser(prog="python scripts/hf_forget_train.py repro")
-    parser.add_argument("family", choices=["whitebox", "graybox", "blackbox", "baseline", "eval", "gpm", "sweep"])
+    parser.add_argument("family", choices=["whitebox", "graybox", "blackbox", "baseline", "eval", "gpm", "sweep", "table"])
     parser.add_argument("dataset")
     parser.add_argument("rest", nargs="*")
     parser.add_argument("--split", default=None)
@@ -404,21 +427,7 @@ def _early_dispatch_repro(argv):
             return "192"
         raise SystemExit(f"unsupported ToFU split: {split}")
 
-    def paper_wmdp_csm_ge_suffix(sweep_kind="topk", value="160"):
-        value = str(value)
-        if sweep_kind == "topk":
-            return _early_suffix_with_append(f"wmdp_s150_topk_{value}_20260503i")
-        if sweep_kind == "basis-retain":
-            return _early_suffix_with_append(f"wmdp_csmge_topk160_basisretain{value}_20260504a")
-        if sweep_kind == "basis-forget":
-            return _early_suffix_with_append(f"wmdp_csmge_topk160_basisforget{value}_20260504a")
-        if sweep_kind == "lora-r":
-            return _early_suffix_with_append(f"wmdp_csmge_topk160_lorar{value}_20260504a")
-        if sweep_kind in {"forget-steps", "max-steps"}:
-            if value == "150":
-                return _early_suffix_with_append("wmdp_s150_topk_160_20260503i")
-            return _early_suffix_with_append(f"wmdp_csmge_topk160_step{value}_20260504a")
-        raise SystemExit(f"unsupported WMDP CSM-GE paper sweep: {sweep_kind}")
+    paper_wmdp_csm_ge_suffix = _wmdp_csmge_suffix
 
     def wmdp_route_eval_cmd(env, run_tag, ckpt_path, threshold_json, seed):
         base_model = os.environ.get("BASE_MODEL", "HuggingFaceH4/zephyr-7b-beta")
@@ -563,6 +572,246 @@ def _early_dispatch_repro(argv):
             f"data.dataset.eval.retain_result={tofu_retain_result_path(env, plain_split)}",
             f"+data.dataset.eval.max_num={os.environ.get('TOFU_EVAL_MAX_NUM', '300')}",
         ]
+
+    if family == "table":
+        table_id = dataset.upper()
+        seed = args.seed or (rest[0] if rest and rest[0].isdigit() else "42")
+        all_gpus = args.gpus or "0,1,2,3"
+        first_gpu = all_gpus.split(",")[0]
+        requested = {item.lower() for item in rest if not item.isdigit()}
+        target_tokens = {"tofu", "tofu01", "tofu05", "tofu10", "wmdp"}
+        target_filters = requested & target_tokens
+        method_filters = requested - target_filters
+        whitebox_methods = ["ga", "ga+gd", "ga+kl", "npo", "npo+gd", "npo+kl", "dpo", "dpo+gd", "dpo+kl"]
+        specs = []
+
+        def _matches(name, choices):
+            aliases = {name.lower()}
+            if name.lower() in {"csm-ge", "csmge"}:
+                aliases.update({"csm-ge", "csmge"})
+            return bool(aliases & choices)
+
+        def wants(name):
+            return not method_filters or _matches(name, method_filters)
+
+        def wants_target(name):
+            return not target_filters or name.lower() in target_filters
+
+        def add(label, child_args, gpus=None, env=None, allow_stage=True):
+            child = list(child_args)
+            if allow_stage and args.stage != "both" and child and child[0] in {"whitebox", "graybox", "blackbox"}:
+                child.extend(["--stage", args.stage])
+            child.extend(["--gpus", gpus or first_gpu])
+            specs.append((label, child, gpus or first_gpu, env or {}))
+
+        def add_tofu_main(section, split):
+            if wants("baseline"):
+                add(f"{section} ToFU {split} vanilla", ["baseline", "tofu", "vanilla", split, seed], first_gpu, allow_stage=False)
+                add(f"{section} ToFU {split} retain", ["baseline", "tofu", "retain", split, seed], first_gpu, allow_stage=False)
+            if wants("uld"):
+                add(f"{section} ToFU {split} ULD", ["graybox", "tofu", "uld", split, seed], first_gpu, {"RUN_SUFFIX": _tofu_a_graybox_suffix("ULD", split)})
+            if wants("offset"):
+                add(f"{section} ToFU {split} Offset", ["graybox", "tofu", "offset", split, seed], all_gpus, {"RUN_SUFFIX": _tofu_a_graybox_suffix("Offset", split)})
+            if wants("csm-ge") or wants("csmge"):
+                add(f"{section} ToFU {split} CSM-GE", ["blackbox", "tofu", split, seed, "--top-k", _tofu_a_csmge_top_k(split)], first_gpu, {"RUN_SUFFIX": _tofu_a_csmge_suffix(split)})
+            if wants("gpm"):
+                add(f"{section} ToFU {split} GPM", ["gpm", "tofu", split, seed], first_gpu, {"RUN_SUFFIX": _tofu_a_gpm_suffix(split)}, allow_stage=False)
+            for method in whitebox_methods:
+                if wants(method):
+                    add(f"{section} ToFU {split} {method}", ["whitebox", "tofu", method, split, seed], all_gpus, {"RUN_SUFFIX": _tofu_a_whitebox_suffix(method, split)})
+
+        def add_wmdp_main():
+            if wants("baseline"):
+                add("A4 WMDP vanilla", ["baseline", "wmdp", "vanilla", seed], first_gpu, allow_stage=False)
+            whitebox_env = {
+                "TRAIN_LR": "2e-5",
+                "TRAIN_MAX_STEPS": "50",
+                "SAVE_STEPS_OVERRIDE": "50",
+                "TRAIN_BATCH_SIZE": "1",
+                "TRAIN_GRAD_ACC": "2",
+                "TRAIN_WEIGHT_DECAY": "0",
+                "WMDP_RETAIN_NUM": "1200",
+                "WMDP_MAX_FORGET": "none",
+            }
+            for method in whitebox_methods:
+                if wants(method):
+                    env = dict(whitebox_env)
+                    env["RUN_SUFFIX"] = _wmdp_b6_whitebox_suffix(method, "50")
+                    add(f"A4 WMDP {method}", ["whitebox", "wmdp", method, seed], all_gpus, env)
+            if wants("uld"):
+                add("A4 WMDP ULD", ["graybox", "wmdp", "uld", seed, "--split", "bio_cyber_chem"], all_gpus, {"RUN_SUFFIX": _wmdp_b6_uld_suffix("150")})
+            if wants("offset"):
+                add("A4 WMDP Offset", ["graybox", "wmdp", "offset", seed, "--split", "bio_cyber_chem"], all_gpus, {"RUN_SUFFIX": _wmdp_b6_uld_suffix("150")})
+            if wants("csm-ge") or wants("csmge"):
+                add("A4 WMDP CSM-GE", ["blackbox", "wmdp", seed, "--top-k", "160"], first_gpu, {"RUN_SUFFIX": _wmdp_csmge_suffix("topk", "160")})
+            if wants("gpm"):
+                add("A4 WMDP GPM", ["gpm", "wmdp", seed], first_gpu, {"RUN_SUFFIX": _early_suffix_with_append("wmdp_gpm_match_csmge150_20260501a")}, allow_stage=False)
+
+        def add_b_sweep(section):
+            sweep_kind = {"B1": "topk", "B2": "basis-retain", "B3": "basis-forget", "B4": "lora-r", "B5": "forget-steps"}[section]
+            for target in ["tofu10", "wmdp"]:
+                if wants_target(target):
+                    values = args.values or _table_value_csv(section, target)
+                    child = ["sweep", sweep_kind, target, "--values", values, "--seed", seed]
+                    if args.stage != "both":
+                        child.extend(["--stage", args.stage])
+                    add(f"{section} {target} {sweep_kind}", child, first_gpu, allow_stage=False)
+
+        def add_b6():
+            tofu_steps = ["80", "100", "120", "140", "160", "180", "200"]
+            wmdp_steps = ["50", "75", "100", "125", "150", "175", "200"]
+            if args.values:
+                selected = {value.strip() for value in args.values.split(",") if value.strip()}
+                tofu_steps = [step for step in tofu_steps if step in selected]
+                wmdp_steps = [step for step in wmdp_steps if step in selected]
+                if not tofu_steps and not wmdp_steps:
+                    raise SystemExit(f"no B6 steps selected by --values {args.values!r}")
+            if wants_target("tofu10"):
+                tofu_csmge_steps = ["180", "80", "100", "120", "140", "160", "200"]
+                if args.values:
+                    tofu_csmge_steps = [step for step in tofu_csmge_steps if step in set(tofu_steps)]
+                    if tofu_csmge_steps and "180" not in tofu_csmge_steps and args.stage != "eval":
+                        tofu_csmge_steps.insert(0, "180")
+                tofu_csmge_basis_suffix = _tofu10_b6_csmge_suffix("180")
+                tofu_csmge_basis_root = f"artifacts/basis_csm_ge/seed{seed}_{tofu_csmge_basis_suffix}"
+                if wants("csm-ge") or wants("csmge"):
+                    for step in tofu_csmge_steps:
+                        env = {
+                            "RUN_SUFFIX": _tofu10_b6_csmge_suffix(step),
+                            "TRAIN_MAX_STEPS": step,
+                            "SAVE_STEPS_OVERRIDE": step,
+                            "TOP_K": "192",
+                            "MAX_FORGET": "400",
+                            "MAX_RETAIN": "2400",
+                            "BASIS_MAX_FORGET": "400",
+                            "BASIS_MAX_RETAIN": "2400",
+                            "TRAIN_RETAIN_NUM": "400",
+                            "CSM_GE_PROJECT_FORGET_ONLY": "1",
+                            "TRAIN_LR": "0.00015",
+                            "TRAIN_BATCH_SIZE": "4",
+                            "TRAIN_GRAD_ACC": "2",
+                            "TRAIN_WEIGHT_DECAY": "0",
+                            "FORGET_WEIGHT": "4",
+                            "RETAIN_WEIGHT": "1",
+                            "LORA_R": "32",
+                            "LORA_ALPHA": "64",
+                            "LORA_DROPOUT": "0.05",
+                        }
+                        if step != "180":
+                            env["BASIS_ROOT_OVERRIDE"] = os.environ.get("BASIS_ROOT_OVERRIDE", tofu_csmge_basis_root)
+                            env["SKIP_BASIS"] = os.environ.get("SKIP_BASIS", "1")
+                        add(f"B6 ToFU10 CSM-GE step {step}", ["blackbox", "tofu", "forget10", seed, "--top-k", "192"], first_gpu, env)
+                for method in ["ga", "npo+gd"]:
+                    if not wants(method):
+                        continue
+                    for step in tofu_steps:
+                        add(
+                            f"B6 ToFU10 {method} step {step}",
+                            ["whitebox", "tofu", method, "forget10", seed],
+                            all_gpus,
+                            {"RUN_SUFFIX": _tofu10_b6_whitebox_suffix(method, step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step},
+                        )
+                if wants("uld"):
+                    for step in tofu_steps:
+                        add(
+                            f"B6 ToFU10 ULD step {step}",
+                            ["graybox", "tofu", "uld", "forget10", seed],
+                            first_gpu,
+                            {"RUN_SUFFIX": _tofu10_b6_uld_suffix(step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step},
+                        )
+            if wants_target("wmdp"):
+                csmge_env = {
+                    "TOP_K": "160",
+                    "MAX_FORGET": "600",
+                    "MAX_RETAIN": "1200",
+                    "TRAIN_RETAIN_NUM": "1200",
+                    "TRAIN_LR": "2e-4",
+                    "TRAIN_BATCH_SIZE": "2",
+                    "TRAIN_GRAD_ACC": "4",
+                    "TRAIN_WEIGHT_DECAY": "0.01",
+                    "FORGET_WEIGHT": "1",
+                    "RETAIN_WEIGHT": "4",
+                    "LORA_R": "32",
+                    "LORA_ALPHA": "64",
+                    "LORA_DROPOUT": "0.05",
+                    "CSM_GE_PROJECT_FORGET_ONLY": "true",
+                    "THRESH_OPTIMIZE": "tpr",
+                    "THRESH_MAX_FPR": "0.215",
+                    "SCORE_POS": "prompt_last",
+                    "SCORE_LAST_K": "4",
+                    "SCORE_LAST_K_REDUCE": "max",
+                    "THRESH_TRUNCATE_MODE": "head_tail",
+                    "EVAL_TRUNCATE_MODE": "head_tail",
+                }
+                if wants("csm-ge") or wants("csmge"):
+                    wmdp_csmge_steps = ["150", "50", "75", "100", "125", "175", "200"]
+                    if args.values:
+                        wmdp_csmge_steps = [step for step in wmdp_csmge_steps if step in set(wmdp_steps)]
+                        if wmdp_csmge_steps and "150" not in wmdp_csmge_steps and args.stage != "eval":
+                            wmdp_csmge_steps.insert(0, "150")
+                    wmdp_csmge_basis_suffix = _wmdp_b6_csmge_suffix("150")
+                    wmdp_csmge_basis_path = f"artifacts/basis_csm_ge/wmdp_seed{seed}_{wmdp_csmge_basis_suffix}/wmdp_basis/csm_ge_basis_wmdp_bio_cyber_chem_vs_mmlu.pkl"
+                    for step in wmdp_csmge_steps:
+                        env = dict(csmge_env)
+                        env.update({"RUN_SUFFIX": _wmdp_b6_csmge_suffix(step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step})
+                        if step != "150":
+                            env["BASIS_PATH_OVERRIDE"] = os.environ.get("BASIS_PATH_OVERRIDE", wmdp_csmge_basis_path)
+                        add(f"B6 WMDP CSM-GE step {step}", ["blackbox", "wmdp", seed, "--top-k", "160"], first_gpu, env)
+                whitebox_env = {
+                    "TRAIN_LR": "2e-5",
+                    "TRAIN_BATCH_SIZE": "1",
+                    "TRAIN_GRAD_ACC": "2",
+                    "TRAIN_WEIGHT_DECAY": "0",
+                    "WMDP_RETAIN_NUM": "1200",
+                    "WMDP_MAX_FORGET": "none",
+                }
+                for method in ["ga", "npo+gd"]:
+                    if not wants(method):
+                        continue
+                    for step in wmdp_steps:
+                        env = dict(whitebox_env)
+                        env.update({"RUN_SUFFIX": _wmdp_b6_whitebox_suffix(method, step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step})
+                        add(f"B6 WMDP {method} step {step}", ["whitebox", "wmdp", method, seed], all_gpus, env)
+                if wants("uld"):
+                    for step in wmdp_steps:
+                        add(
+                            f"B6 WMDP ULD step {step}",
+                            ["graybox", "wmdp", "uld", seed, "--split", "bio_cyber_chem"],
+                            all_gpus,
+                            {"RUN_SUFFIX": _wmdp_b6_uld_suffix(step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step},
+                        )
+
+        tables = ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "B5", "B6"] if table_id == "ALL" else [table_id]
+        for one in tables:
+            if one == "A1":
+                add_tofu_main(one, "forget01")
+            elif one == "A2":
+                add_tofu_main(one, "forget05")
+            elif one == "A3":
+                add_tofu_main(one, "forget10")
+            elif one == "A4":
+                add_wmdp_main()
+            elif one in {"B1", "B2", "B3", "B4", "B5"}:
+                add_b_sweep(one)
+            elif one == "B6":
+                add_b6()
+            else:
+                raise SystemExit(f"unsupported paper table: {one}")
+        if not specs:
+            raise SystemExit(f"no commands selected for table {table_id}; filters={sorted(requested)}")
+
+        failures = 0
+        for label, child, gpus, env_overrides in specs:
+            env = os.environ.copy()
+            env.update(_early_common_env(seed, gpus))
+            env.update({key: str(value) for key, value in env_overrides.items()})
+            print(f"# table {label}")
+            rc = _early_run_or_print([env["PYTHON"], __file__, "repro", *child], env=env, dry_run=dry_run)
+            if rc != 0:
+                failures += 1
+                if not args.continue_on_error:
+                    return rc
+        return 1 if failures else 0
 
     if family == "eval" and dataset == "tofu-route":
         if len(rest) < 4:
@@ -1248,6 +1497,8 @@ def _early_dispatch_repro(argv):
                     raise SystemExit(f"unsupported sweep: {sweep_kind} {target}")
             else:
                 raise SystemExit(f"unsupported sweep: {sweep_kind} {target}")
+            if args.stage != "both":
+                cmd.extend(["--stage", args.stage])
             rc = _early_run_or_print(cmd, env=env, dry_run=dry_run)
             if rc != 0:
                 return rc
