@@ -79,6 +79,8 @@ For sweep tables, `--values` can restrict the sweep values; for B6 it restricts 
 `--stage train` runs only training/setup, `--stage eval` evaluates an existing run, and `--stage both` runs the full command.
 Generated checkpoints and evaluation outputs stay under ignored artifact directories.
 
+The default numeric mode follows the original paper runs. For audit runs that prefer deterministic CUDA settings, set `WMDP_NUMERIC_MODE=deterministic` or `TRAIN_EXACT_DETERMINISTIC=1`; this changes the numeric execution path and should be reported separately from paper-mode runs.
+
 ## Examples
 
 White-box ToFU:

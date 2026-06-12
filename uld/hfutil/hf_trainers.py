@@ -114,7 +114,9 @@ class ForgetTrainer(Trainer):
         if not isinstance(train_dataset, torch.utils.data.IterableDataset):
 
             if os.environ.get("TRAIN_EXACT_DETERMINISTIC", "0") == "1":
-                dataloader_params["generator"] = generator
+                dataloader_generator = torch.Generator()
+                dataloader_generator.manual_seed(self.seed + self.state.global_step)
+                dataloader_params["generator"] = dataloader_generator
             # dataloader_params["shuffle"] = True # set shuffle=True with specified generator.
             dataloader_params["sampler"] = self._get_train_sampler(generator=generator)
             dataloader_params["drop_last"] = self.args.dataloader_drop_last
