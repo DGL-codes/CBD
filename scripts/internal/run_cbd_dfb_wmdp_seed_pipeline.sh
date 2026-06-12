@@ -9,7 +9,7 @@ set -euo pipefail
 
 SEED="${1:?seed required}"
 GPU="${2:-0}"
-RUN_SUFFIX="${3:-wmdp_csm_ge}"
+RUN_SUFFIX="${3:-wmdp_cbd_dfb}"
 UNLEARN_LOSS="${4:-gd+kl}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -18,7 +18,7 @@ cd "$ROOT"
 CONDA_SH="${CONDA_SH:-}"
 if [[ -f "${CONDA_SH}" ]]; then
   source "${CONDA_SH}"
-  conda activate "${REPRO_CONDA_ENV:-uld_exact_20260424}" || true
+  conda activate "${REPRO_CONDA_ENV:-cbd}" || true
 fi
 
 DEFAULT_PY="python"
@@ -29,7 +29,7 @@ fi
 
 # Base/assist model selection
 BASE_MODEL="${BASE_MODEL:-HuggingFaceH4/zephyr-7b-beta}"
-ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T}"
+ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
 ASSIST_BASE_IF_LORA="${ASSIST_BASE_IF_LORA:-${ASSIST_MODEL}}"
 MODEL_CONFIG="${MODEL_CONFIG:-tinyllama}"
 ASSIST_TOKENIZER="${ASSIST_TOKENIZER:-${ASSIST_BASE_IF_LORA}}"
@@ -49,10 +49,10 @@ RUN_TAG="wmdp_seed${SEED}_${RUN_SUFFIX}"
 LOGROOT="artifacts/seed_runs/${RUN_TAG}"
 mkdir -p "${LOGROOT}"
 
-OUTMODELDIR="artifacts/outputs_trained_models/csm_ge_tinyllama_wmdp/${RUN_TAG}"
-BASIS_ROOT="artifacts/basis_csm_ge/${RUN_TAG}"
+OUTMODELDIR="artifacts/outputs_trained_models/cbd_dfb_tinyllama_wmdp/${RUN_TAG}"
+BASIS_ROOT="artifacts/basis_cbd_dfb/${RUN_TAG}"
 EVAL_ROOT="artifacts/eval_outputs/wmdp/${RUN_TAG}"
-BASELOGDIR_VALUE="artifacts/outputs/csm_ge_log_wmdp/${RUN_TAG}"
+BASELOGDIR_VALUE="artifacts/outputs/cbd_dfb_log_wmdp/${RUN_TAG}"
 mkdir -p "${OUTMODELDIR}" "${BASIS_ROOT}" "${EVAL_ROOT}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
@@ -132,14 +132,14 @@ else
   if [[ -n "${BASIS_GRAD_STORE_DTYPE}" ]]; then
     basis_extra_args+=(--grad_store_dtype "${BASIS_GRAD_STORE_DTYPE}")
   fi
-  "${PY}" scripts/extract_csm_ge_basis.py \
+  "${PY}" scripts/extract_cbd_dfb_basis.py \
     --base_model_name "${ASSIST_MODEL}" --dataset wmdp_mcq --wmdp_domains "${FORGET_DOMAINS}" \
     --mmlu_retain_file "${MMLU_TRAIN_FILE}" --seed "${SEED}" --max_forget "${BASIS_MAX_FORGET}" \
     --max_retain "${BASIS_MAX_RETAIN}" --max_len "${TRAIN_MAX_LEN}" --top_k "${TOP_K}" \
     "${basis_extra_args[@]}" \
     --output_dir "${BASIS_ROOT}/wmdp_basis" \
     >"${LOGROOT}/basis.log" 2>&1
-  BASIS_PATH="${BASIS_ROOT}/wmdp_basis/csm_ge_basis_wmdp_${FORGET_DOMAINS//,/_}_vs_mmlu.pkl"
+  BASIS_PATH="${BASIS_ROOT}/wmdp_basis/cbd_dfb_basis_wmdp_${FORGET_DOMAINS//,/_}_vs_mmlu.pkl"
 fi
 basis_elapsed_sec="$(( $(date +%s) - basis_t0 ))"
 
@@ -162,7 +162,7 @@ if [[ -n "${LORA_DROPOUT}" ]]; then
 fi
 train_cmd=(
   "${PY}" scripts/hf_forget_train.py
-  --config-name csm_ge_tinyllama_wmdp
+  --config-name cbd_dfb_tinyllama_wmdp
   "data.dataset.split=${TRAIN_SPLIT}"
   "data.dataset.mmlu_retain_file=${MMLU_TRAIN_FILE}"
   "data.dataset.max_forget=${MAX_FORGET}"
@@ -181,9 +181,9 @@ train_cmd=(
   "model.tokenizer_path=${ASSIST_TOKENIZER}"
   "model_mode=base_freeze_a"
   "unlearn_loss=${UNLEARN_LOSS}"
-  "enable_csm_ge=true"
-  "csm_ge_basis_path=${BASIS_PATH}"
-  "csm_ge_project_forget_only=${CSM_GE_PROJECT_FORGET_ONLY}"
+  "enable_cbd_dfb=true"
+  "cbd_dfb_basis_path=${BASIS_PATH}"
+  "cbd_dfb_project_forget_only=${CSM_GE_PROJECT_FORGET_ONLY}"
   "oracle_on_cpu=false"
   "gradient_checkpointing=${GRADIENT_CHECKPOINTING}"
 )
@@ -195,7 +195,7 @@ if [[ -n "${RETAIN_WEIGHT}" ]]; then
 fi
 train_cmd+=("${train_extra_args[@]}")
 train_cmd+=(
-  "project=csm_ge_wmdp_seed${SEED}"
+  "project=cbd_dfb_wmdp_seed${SEED}"
   "seed=${SEED}"
   "lora_seed=${SEED}"
   "OUTPUTMODELDIR=${OUTMODELDIR}"

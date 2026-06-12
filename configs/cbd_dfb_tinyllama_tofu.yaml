@@ -6,13 +6,13 @@ defaults:
   - model_mode: base_freeze_a
   - unlearn_loss: gd+kl
 
-enable_csm_ge: true
-csm_ge_basis_path: ""
-csm_ge_eigval_weight: false
-csm_ge_trust_region: false
-csm_ge_trust_region_epsilon: 1e-3
-csm_ge_trust_region_delta: 1e-12
-csm_ge_project_forget_only: false
+enable_cbd_dfb: true
+cbd_dfb_basis_path: ""
+cbd_dfb_eigval_weight: false
+cbd_dfb_trust_region: false
+cbd_dfb_trust_region_epsilon: 1e-3
+cbd_dfb_trust_region_delta: 1e-12
+cbd_dfb_project_forget_only: false
 enable_gmp: false
 gmp_basis_path: ""
 gmp_project_forget_only: false
@@ -28,7 +28,7 @@ trainer:
   seed: 42
   eval_steps: 1000
 
-project: csm_ge_tinyllama_paper
+project: cbd_dfb_tinyllama_paper
 name: null
 debug: false
 resume: false
@@ -38,8 +38,8 @@ seed: 42
 lora_seed: ${seed}
 
 save_dir: artifacts/outputs/model_dir/
-BASELOGDIR: "artifacts/outputs/csm_ge_log"
-OUTPUTMODELDIR: "artifacts/outputs_trained_models/csm_ge_tinyllama"
+BASELOGDIR: "artifacts/outputs/cbd_dfb_log"
+OUTPUTMODELDIR: "artifacts/outputs_trained_models/cbd_dfb_tinyllama"
 
 hydra:
   run:
@@ -48,13 +48,13 @@ hydra:
     config:
       override_dirname:
         exclude_keys:
-          - csm_ge_basis_path
-          - enable_csm_ge
-          - csm_ge_eigval_weight
-          - csm_ge_trust_region
-          - csm_ge_trust_region_epsilon
-          - csm_ge_trust_region_delta
-          - csm_ge_project_forget_only
+          - cbd_dfb_basis_path
+          - enable_cbd_dfb
+          - cbd_dfb_eigval_weight
+          - cbd_dfb_trust_region
+          - cbd_dfb_trust_region_epsilon
+          - cbd_dfb_trust_region_delta
+          - cbd_dfb_project_forget_only
           - enable_gmp
           - gmp_basis_path
           - gmp_project_forget_only

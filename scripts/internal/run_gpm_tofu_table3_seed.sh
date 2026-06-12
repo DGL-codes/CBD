@@ -14,7 +14,7 @@ CONDA_SH="${CONDA_SH:-}"
 if [[ -f "${CONDA_SH}" ]]; then
   # shellcheck disable=SC1090
   source "${CONDA_SH}"
-  conda activate "${REPRO_CONDA_ENV:-uld_exact_20260424}" >/dev/null 2>&1 || true
+  conda activate "${REPRO_CONDA_ENV:-cbd}" >/dev/null 2>&1 || true
 fi
 PY="${PYTHON:-python}"
 if [[ ! -x "${PY}" ]]; then
@@ -33,7 +33,7 @@ export FORCE_SAVE_FINAL_CHECKPOINT="${FORCE_SAVE_FINAL_CHECKPOINT:-1}"
 
 FORGET_SPLIT="${FORGET_SPLIT:-forget10}"
 TOFU_DATA_NAME="${TOFU_DATA_NAME:-${CBD_DATA_ROOT:-data}/TOFU}"
-ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T}"
+ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
 TOFU_BASE_MODEL="${TOFU_BASE_MODEL:-locuslab/tofu_ft_llama2-7b}"
 TRAIN_RETAIN_NUM="${TRAIN_RETAIN_NUM:-2400}"
 TRAIN_EPOCHS="${TRAIN_EPOCHS:-4}"
@@ -137,11 +137,11 @@ if [[ -n "${TRAIN_MAX_STEPS}" && "${TRAIN_MAX_STEPS}" != "none" && "${TRAIN_MAX_
   TRAIN_STEP_ARGS+=(+trainer.max_steps="${TRAIN_MAX_STEPS}")
 fi
 ${PY} scripts/hf_forget_train.py \
-  --config-name csm_ge_tinyllama_tofu \
+  --config-name cbd_dfb_tinyllama_tofu \
   data.dataset.split="${FORGET_SPLIT}" \
   data_mode=forget_retain \
   data_mode.retain_num="${TRAIN_RETAIN_NUM}" \
-  enable_csm_ge=false \
+  enable_cbd_dfb=false \
   enable_gmp=true \
   gmp_basis_path="${BASIS_PATH}" \
   gmp_project_forget_only="${GPM_PROJECT_FORGET_ONLY}" \

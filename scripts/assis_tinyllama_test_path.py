@@ -777,7 +777,7 @@ def main():
                       default="artifacts/outputs_trained_models/2025-07-16T20-44-25/checkpoint-600",
                       help="微调模型路径")
     parser.add_argument("--pretrained_model_name", type=str, 
-                      default="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
+                      default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                       help="原始预训练模型名称")
     parser.add_argument("--dataset_name", type=str, default="locuslab/TOFU", help="数据集名称")
     parser.add_argument("--dataset_split", type=str, default="all",

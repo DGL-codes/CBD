@@ -531,8 +531,8 @@ def select_threshold(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--finetuned_assist_path", required=True, help="A1 checkpoint dir (can be LoRA adapter dir)")
-    parser.add_argument("--original_assist_path", default="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")
-    parser.add_argument("--base_if_lora", default="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")
+    parser.add_argument("--original_assist_path", default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    parser.add_argument("--base_if_lora", default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
     parser.add_argument("--orig_device", default="cuda", help="Device for original assistant (e.g., cuda:0)")
     parser.add_argument("--ft_device", default="cuda", help="Device for finetuned assistant (e.g., cuda:1)")
     parser.add_argument("--wmdp_domains", default="bio,cyber", help="Forget domains (csv)")

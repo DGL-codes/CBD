@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extract CSM-GE basis (generalized eigen subspace) from gradient statistics.
+Extract CBD-DFB basis (generalized eigen subspace) from gradient statistics.
 
 We build LoRA on the base assistant (A0) and compute per-sample gradients on
 forget/retain splits. For each layer, we form G_f and G_r (column-wise) and
@@ -321,7 +321,7 @@ def _concat_grad_chunks(chunks):
     raise ValueError(f"Unsupported gradient chunk type: {type(first)}")
 
 
-def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, target_variance, top_k):
+def compute_cbd_dfb_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, target_variance, top_k):
     basis = {}
     compute_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if compute_device.type == "cuda":
@@ -435,7 +435,7 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
                     pass
                 mu_eff_cpu *= 10.0
             if not ok_cpu:
-                print(f"[compute_csm_ge_basis] WARN skip_layer_nonfinite layer={layer_name}")
+                print(f"[compute_cbd_dfb_basis] WARN skip_layer_nonfinite layer={layer_name}")
                 del G_f, G_r, K_r, K_rf, eye_r
                 if compute_device.type == "cuda":
                     torch.cuda.empty_cache()
@@ -452,7 +452,7 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
             if (not torch.isfinite(eigvals).all()) or (not torch.isfinite(eigvecs).all()):
                 raise RuntimeError("non_finite_eigh_output")
         except Exception as e:
-            print(f"[compute_csm_ge_basis] WARN eigh_failed layer={layer_name} err={type(e).__name__}")
+            print(f"[compute_cbd_dfb_basis] WARN eigh_failed layer={layer_name} err={type(e).__name__}")
             # Ensure exact symmetry (avoid tiny asymmetry from matmul numerics).
             M_sym = (M + M.t()) * 0.5
 
@@ -471,7 +471,7 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
                     if (not torch.isfinite(eigvals).all()) or (not torch.isfinite(eigvecs).all()):
                         raise RuntimeError("non_finite_eigh_retry_output")
                     print(
-                        f"[compute_csm_ge_basis] eigh_retry_ok layer={layer_name} attempt={attempt} jitter={jitter:.3e}"
+                        f"[compute_cbd_dfb_basis] eigh_retry_ok layer={layer_name} attempt={attempt} jitter={jitter:.3e}"
                     )
                     ok = True
                     break
@@ -497,7 +497,7 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
                         eigvals = eigvals_cpu.to(device=compute_device, dtype=M.dtype)
                         eigvecs = eigvecs_cpu.to(device=compute_device, dtype=M.dtype)
                         print(
-                            f"[compute_csm_ge_basis] eigh_cpu_retry_ok layer={layer_name} attempt={attempt} jitter={cpu_jitter:.3e}"
+                            f"[compute_cbd_dfb_basis] eigh_cpu_retry_ok layer={layer_name} attempt={attempt} jitter={cpu_jitter:.3e}"
                         )
                         ok = True
                         break
@@ -514,19 +514,19 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
                         eigvals = torch.from_numpy(eigvals_np).to(device=compute_device, dtype=M.dtype)
                         eigvecs = torch.from_numpy(eigvecs_np).to(device=compute_device, dtype=M.dtype)
                         ok = True
-                        print(f"[compute_csm_ge_basis] numpy_eigh_fallback layer={layer_name}")
+                        print(f"[compute_cbd_dfb_basis] numpy_eigh_fallback layer={layer_name}")
                     except Exception:
                         # Last-resort SVD on CPU; for symmetric PSD, U are eigenvectors.
                         U_np, S_np, _ = np.linalg.svd(M_np, full_matrices=False)
                         if (not np.isfinite(S_np).all()) or (not np.isfinite(U_np).all()):
-                            print(f"[compute_csm_ge_basis] WARN skip_layer_nonfinite_svd layer={layer_name}")
+                            print(f"[compute_cbd_dfb_basis] WARN skip_layer_nonfinite_svd layer={layer_name}")
                             del G_f, G_r, K_r, K_rf, eye_r, Z, M, M_sym, eye_m
                             if compute_device.type == "cuda":
                                 torch.cuda.empty_cache()
                             continue
                         eigvals = torch.from_numpy(S_np).to(device=compute_device, dtype=M.dtype)
                         eigvecs = torch.from_numpy(U_np).to(device=compute_device, dtype=M.dtype)
-                        print(f"[compute_csm_ge_basis] numpy_svd_fallback layer={layer_name}")
+                        print(f"[compute_cbd_dfb_basis] numpy_svd_fallback layer={layer_name}")
 
         idx = torch.argsort(eigvals, descending=True)
         eigvals = eigvals[idx]
@@ -557,7 +557,7 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
         retain_proj = G_r.t().matmul(Q).contiguous()  # [n_r, k]
 
         if (not torch.isfinite(Q_T).all()) or (not torch.isfinite(eigvals_k).all()) or (not torch.isfinite(retain_proj).all()):
-            print(f"[compute_csm_ge_basis] WARN skip_layer_nonfinite_outputs layer={layer_name}")
+            print(f"[compute_cbd_dfb_basis] WARN skip_layer_nonfinite_outputs layer={layer_name}")
             del G_f, G_r, K_r, K_rf, eye_r, Z, M, M_sym, eye_m, eigvals, eigvecs, u, Q, Q_T, retain_proj
             if compute_device.type == "cuda":
                 torch.cuda.empty_cache()
@@ -576,7 +576,7 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
         }
 
         layer_dt = time.perf_counter() - layer_t0
-        print(f"[compute_csm_ge_basis] layer={layer_name} k={basis[layer_name]['n_components']} sec={layer_dt:.2f}")
+        print(f"[compute_cbd_dfb_basis] layer={layer_name} k={basis[layer_name]['n_components']} sec={layer_dt:.2f}")
 
         # Free per-layer tensors early to keep memory bounded.
         del G_f, G_r, K_r, K_rf, eye_r, A, X, Z, M, M_sym, eye_m, eigvals, eigvecs, u, Q, Q_T
@@ -587,8 +587,8 @@ def compute_csm_ge_basis(forget_grads, retain_grads, mu, mu_mode, mu_scale, targ
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract CSM-GE basis from gradients")
-    parser.add_argument("--base_model_name", type=str, default="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")
+    parser = argparse.ArgumentParser(description="Extract CBD-DFB basis from gradients")
+    parser.add_argument("--base_model_name", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
     parser.add_argument("--seed", type=int, default=42, help="随机种子（用于对齐 LoRA A 初始化）")
     parser.add_argument("--dataset", type=str, default="tofu", choices=["tofu", "wmdp_mcq"], help="数据来源：ToFU(split) 或 WMDP/MMLU(MCQ)")
     parser.add_argument("--forget_split", type=str, default=None, help="ToFU forget split（dataset=tofu 时必填）")
@@ -744,7 +744,7 @@ def main():
     )
     t_retain = time.perf_counter()
 
-    basis = compute_csm_ge_basis(
+    basis = compute_cbd_dfb_basis(
         forget_grads,
         retain_grads,
         mu=args.mu,
@@ -756,7 +756,7 @@ def main():
     t_basis = time.perf_counter()
     print(f"[timing] forget_grads_sec={t_forget - t0:.1f} retain_grads_sec={t_retain - t_forget:.1f} basis_sec={t_basis - t_retain:.1f} total_sec={t_basis - t0:.1f}")
 
-    basis_path = os.path.join(args.output_dir, f"csm_ge_basis_{forget_tag}_vs_{retain_tag}.pkl")
+    basis_path = os.path.join(args.output_dir, f"cbd_dfb_basis_{forget_tag}_vs_{retain_tag}.pkl")
     with open(basis_path, "wb") as f:
         pickle.dump(basis, f)
 

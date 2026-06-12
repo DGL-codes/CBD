@@ -14,7 +14,7 @@ CONDA_SH="${CONDA_SH:-}"
 if [[ -f "${CONDA_SH}" ]]; then
   # shellcheck disable=SC1090
   source "${CONDA_SH}"
-  conda activate "${REPRO_CONDA_ENV:-uld_exact_20260424}" >/dev/null 2>&1 || true
+  conda activate "${REPRO_CONDA_ENV:-cbd}" >/dev/null 2>&1 || true
 fi
 PY="${PYTHON:-python}"
 if [[ ! -x "${PY}" ]]; then
@@ -33,7 +33,7 @@ export FORCE_SAVE_FINAL_CHECKPOINT="${FORCE_SAVE_FINAL_CHECKPOINT:-1}"
 
 WMDP_DOMAINS="${WMDP_DOMAINS:-bio,cyber,chem}"
 WMDP_TRAIN_SPLIT="${WMDP_TRAIN_SPLIT:-bio_cyber_chem}"
-ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T}"
+ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
 BASE_MODEL="${BASE_MODEL:-HuggingFaceH4/zephyr-7b-beta}"
 MMLU_TRAIN="${MMLU_TRAIN:-${CBD_DATA_ROOT:-data}/eval-method/wmdp/data/mmlu/all_auxiliary_train.jsonl}"
 MMLU_VAL="${MMLU_VAL:-${CBD_DATA_ROOT:-data}/eval-method/wmdp/data/mmlu/all_validation.jsonl}"
@@ -134,7 +134,7 @@ fi
 PROJECT_NAME="gpm_wmdp_blackbox"
 log "Stage2 训练A1: retain_num=${TRAIN_RETAIN_NUM} epochs=${TRAIN_EPOCHS} lr=${TRAIN_LR}"
 ${PY} scripts/hf_forget_train.py \
-  --config-name csm_ge_tinyllama_wmdp \
+  --config-name cbd_dfb_tinyllama_wmdp \
   hydra.run.dir="artifacts/outputs/gpm_log_wmdp_blackbox/${RUN_TAG}/hydra" \
   data.dataset.split="${WMDP_TRAIN_SPLIT}" \
   data.dataset.mmlu_retain_file="${MMLU_TRAIN}" \
@@ -143,7 +143,7 @@ ${PY} scripts/hf_forget_train.py \
   data.conv_template.max_len="${TRAIN_MAX_LEN}" \
   data_mode=forget_retain \
   data_mode.retain_num="${TRAIN_RETAIN_NUM}" \
-  enable_csm_ge=false \
+  enable_cbd_dfb=false \
   enable_gmp=true \
   gmp_basis_path="${BASIS_PATH}" \
   gmp_project_forget_only="${GPM_PROJECT_FORGET_ONLY}" \

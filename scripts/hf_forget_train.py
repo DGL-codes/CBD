@@ -13,13 +13,13 @@ _EARLY_ENTRY = Path("scripts/hf_forget_train.py")
 DEFAULT_DATA_ROOT = "data"
 DEFAULT_PYTHON = "python"
 DEFAULT_WMDP_MODEL = "HuggingFaceH4/zephyr-7b-beta"
-DEFAULT_ASSIST_MODEL = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+DEFAULT_ASSIST_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 DEFAULT_TOFU_MODEL = "locuslab/tofu_ft_llama2-7b"
 
 
 def _early_common_env(seed, gpus):
     data_root = os.environ.get("CBD_DATA_ROOT", DEFAULT_DATA_ROOT)
-    repro_env = os.environ.get("REPRO_CONDA_ENV", "uld_exact_20260424")
+    repro_env = os.environ.get("REPRO_CONDA_ENV", "cbd")
     repro_python = os.environ.get("PYTHON", DEFAULT_PYTHON)
     return {
         "PYTHONPATH": str(_EARLY_ROOT),
@@ -199,13 +199,13 @@ def _early_suffix_with_append(suffix):
     return f"{suffix}_{append}"
 
 
-def _wmdp_b6_csmge_suffix(step):
+def _wmdp_b6_cbddfb_suffix(step):
     step = str(step)
     if step == "150":
         return _early_suffix_with_append("wmdp_s150_topk_160_20260503i")
     if step in {"50", "100", "200"}:
-        return _early_suffix_with_append(f"wmdp_csmge_topk160_step{step}_20260504a")
-    return _early_suffix_with_append(f"stepgrid_20260516b_wmdp_csmge_s{step}")
+        return _early_suffix_with_append(f"wmdp_cbddfb_topk160_step{step}_20260504a")
+    return _early_suffix_with_append(f"stepgrid_20260516b_wmdp_cbddfb_s{step}")
 
 
 def _wmdp_b6_whitebox_suffix(method, step):
@@ -225,21 +225,21 @@ def _wmdp_b6_uld_suffix(step):
     return _early_suffix_with_append(f"stepgrid_20260516b_wmdp_uld_s{step}")
 
 
-def _wmdp_csmge_suffix(sweep_kind="topk", value="160"):
+def _wmdp_cbddfb_suffix(sweep_kind="topk", value="160"):
     value = str(value)
     if sweep_kind == "topk":
         return _early_suffix_with_append(f"wmdp_s150_topk_{value}_20260503i")
     if sweep_kind == "basis-retain":
-        return _early_suffix_with_append(f"wmdp_csmge_topk160_basisretain{value}_20260504a")
+        return _early_suffix_with_append(f"wmdp_cbddfb_topk160_basisretain{value}_20260504a")
     if sweep_kind == "basis-forget":
-        return _early_suffix_with_append(f"wmdp_csmge_topk160_basisforget{value}_20260504a")
+        return _early_suffix_with_append(f"wmdp_cbddfb_topk160_basisforget{value}_20260504a")
     if sweep_kind == "lora-r":
-        return _early_suffix_with_append(f"wmdp_csmge_topk160_lorar{value}_20260504a")
+        return _early_suffix_with_append(f"wmdp_cbddfb_topk160_lorar{value}_20260504a")
     if sweep_kind in {"forget-steps", "max-steps"}:
         if value == "150":
             return _early_suffix_with_append("wmdp_s150_topk_160_20260503i")
-        return _early_suffix_with_append(f"wmdp_csmge_topk160_step{value}_20260504a")
-    raise SystemExit(f"unsupported WMDP CSM-GE paper sweep: {sweep_kind}")
+        return _early_suffix_with_append(f"wmdp_cbddfb_topk160_step{value}_20260504a")
+    raise SystemExit(f"unsupported WMDP CBD-DFB paper sweep: {sweep_kind}")
 
 
 def _table_value_csv(table_id, target):
@@ -261,11 +261,11 @@ def _table_value_csv(table_id, target):
         raise SystemExit(f"unsupported paper table values: {table_id}/{target}")
 
 
-def _tofu10_b6_csmge_suffix(step):
+def _tofu10_b6_cbddfb_suffix(step):
     step = str(step)
     if step == "180":
-        return _early_suffix_with_append("tofu_csmge_forget10_retain400_projecttrue_basis400_20260514e")
-    return _early_suffix_with_append(f"stepgrid_20260516b_tofu10_csmge_s{step}")
+        return _early_suffix_with_append("tofu_cbddfb_forget10_retain400_projecttrue_basis400_20260514e")
+    return _early_suffix_with_append(f"stepgrid_20260516b_tofu10_cbddfb_s{step}")
 
 
 def _tofu10_b6_whitebox_suffix(method, step):
@@ -289,15 +289,15 @@ def _tofu10_b6_uld_suffix(step):
     return _early_suffix_with_append(f"stepgrid_20260516b_tofu10_uld_s{step}")
 
 
-def _tofu_a_csmge_suffix(split):
+def _tofu_a_cbddfb_suffix(split):
     return _early_suffix_with_append({
-        "forget01": "csmge_tofu01_trainretain400_20260503k",
-        "forget05": "tofu_csmge_forget05_retain400_projecttrue_basisall_20260514e",
-        "forget10": "tofu_csmge_forget10_retain400_projecttrue_basis400_20260514e",
+        "forget01": "cbddfb_tofu01_trainretain400_20260503k",
+        "forget05": "tofu_cbddfb_forget05_retain400_projecttrue_basisall_20260514e",
+        "forget10": "tofu_cbddfb_forget10_retain400_projecttrue_basis400_20260514e",
     }[split])
 
 
-def _tofu_a_csmge_top_k(split):
+def _tofu_a_cbddfb_top_k(split):
     return {"forget01": "40", "forget05": "192", "forget10": "192"}[split]
 
 
@@ -311,8 +311,8 @@ def _tofu_a_graybox_suffix(method, split):
 
 def _tofu_a_gpm_suffix(split):
     if split == "forget10":
-        return _early_suffix_with_append("tofu_graybox_unified_csmge_20260516a_gpm_forget10_pf1")
-    return _early_suffix_with_append(f"tofu_graybox_unified_csmge_20260514c_gpm_{split}")
+        return _early_suffix_with_append("tofu_graybox_unified_cbddfb_20260516a_gpm_forget10_pf1")
+    return _early_suffix_with_append(f"tofu_graybox_unified_cbddfb_20260514c_gpm_{split}")
 
 
 def _tofu_a_whitebox_suffix(method, split):
@@ -430,14 +430,14 @@ def _early_dispatch_repro(argv):
     def paper_tofu_whitebox_is_epoch_full(method, split):
         return (method, split) in tofu_whitebox_epoch_full
 
-    def paper_csm_ge_tofu_top_k(split):
+    def paper_cbd_dfb_tofu_top_k(split):
         if split == "forget01":
             return "40"
         if split in {"forget05", "forget10"}:
             return "192"
         raise SystemExit(f"unsupported ToFU split: {split}")
 
-    paper_wmdp_csm_ge_suffix = _wmdp_csmge_suffix
+    paper_wmdp_cbd_dfb_suffix = _wmdp_cbddfb_suffix
 
     def wmdp_route_eval_cmd(env, run_tag, ckpt_path, threshold_json, seed):
         base_model = os.environ.get("BASE_MODEL", DEFAULT_WMDP_MODEL)
@@ -503,7 +503,7 @@ def _early_dispatch_repro(argv):
             out_json,
         ]
 
-    def apply_csm_ge_tofu_defaults(env, split):
+    def apply_cbd_dfb_tofu_defaults(env, split):
         env.update({
             "TOP_K": os.environ.get("TOP_K", env.get("TOP_K", "192")),
             "MAX_RETAIN": os.environ.get("MAX_RETAIN", "2400"),
@@ -597,8 +597,8 @@ def _early_dispatch_repro(argv):
 
         def _matches(name, choices):
             aliases = {name.lower()}
-            if name.lower() in {"csm-ge", "csmge"}:
-                aliases.update({"csm-ge", "csmge"})
+            if name.lower() in {"cbd-dfb", "cbddfb"}:
+                aliases.update({"cbd-dfb", "cbddfb"})
             return bool(aliases & choices)
 
         def wants(name):
@@ -622,8 +622,8 @@ def _early_dispatch_repro(argv):
                 add(f"{section} ToFU {split} ULD", ["graybox", "tofu", "uld", split, seed], first_gpu, {"RUN_SUFFIX": _tofu_a_graybox_suffix("ULD", split)})
             if wants("offset"):
                 add(f"{section} ToFU {split} Offset", ["graybox", "tofu", "offset", split, seed], all_gpus, {"RUN_SUFFIX": _tofu_a_graybox_suffix("Offset", split)})
-            if wants("csm-ge") or wants("csmge"):
-                add(f"{section} ToFU {split} CSM-GE", ["blackbox", "tofu", split, seed, "--top-k", _tofu_a_csmge_top_k(split)], first_gpu, {"RUN_SUFFIX": _tofu_a_csmge_suffix(split)})
+            if wants("cbd-dfb") or wants("cbddfb"):
+                add(f"{section} ToFU {split} CBD-DFB", ["blackbox", "tofu", split, seed, "--top-k", _tofu_a_cbddfb_top_k(split)], first_gpu, {"RUN_SUFFIX": _tofu_a_cbddfb_suffix(split)})
             if wants("gpm"):
                 add(f"{section} ToFU {split} GPM", ["gpm", "tofu", split, seed], first_gpu, {"RUN_SUFFIX": _tofu_a_gpm_suffix(split)}, allow_stage=False)
             for method in whitebox_methods:
@@ -652,10 +652,10 @@ def _early_dispatch_repro(argv):
                 add("A4 WMDP ULD", ["graybox", "wmdp", "uld", seed, "--split", "bio_cyber_chem"], all_gpus, {"RUN_SUFFIX": _wmdp_b6_uld_suffix("150")})
             if wants("offset"):
                 add("A4 WMDP Offset", ["graybox", "wmdp", "offset", seed, "--split", "bio_cyber_chem"], all_gpus, {"RUN_SUFFIX": _wmdp_b6_uld_suffix("150")})
-            if wants("csm-ge") or wants("csmge"):
-                add("A4 WMDP CSM-GE", ["blackbox", "wmdp", seed, "--top-k", "160"], first_gpu, {"RUN_SUFFIX": _wmdp_csmge_suffix("topk", "160")})
+            if wants("cbd-dfb") or wants("cbddfb"):
+                add("A4 WMDP CBD-DFB", ["blackbox", "wmdp", seed, "--top-k", "160"], first_gpu, {"RUN_SUFFIX": _wmdp_cbddfb_suffix("topk", "160")})
             if wants("gpm"):
-                add("A4 WMDP GPM", ["gpm", "wmdp", seed], first_gpu, {"RUN_SUFFIX": _early_suffix_with_append("wmdp_gpm_match_csmge150_20260501a")}, allow_stage=False)
+                add("A4 WMDP GPM", ["gpm", "wmdp", seed], first_gpu, {"RUN_SUFFIX": _early_suffix_with_append("wmdp_gpm_match_cbddfb150_20260501a")}, allow_stage=False)
 
         def add_b_sweep(section):
             sweep_kind = {"B1": "topk", "B2": "basis-retain", "B3": "basis-forget", "B4": "lora-r", "B5": "forget-steps"}[section]
@@ -677,17 +677,17 @@ def _early_dispatch_repro(argv):
                 if not tofu_steps and not wmdp_steps:
                     raise SystemExit(f"no B6 steps selected by --values {args.values!r}")
             if wants_target("tofu10"):
-                tofu_csmge_steps = ["180", "80", "100", "120", "140", "160", "200"]
+                tofu_cbddfb_steps = ["180", "80", "100", "120", "140", "160", "200"]
                 if args.values:
-                    tofu_csmge_steps = [step for step in tofu_csmge_steps if step in set(tofu_steps)]
-                    if tofu_csmge_steps and "180" not in tofu_csmge_steps and args.stage != "eval":
-                        tofu_csmge_steps.insert(0, "180")
-                tofu_csmge_basis_suffix = _tofu10_b6_csmge_suffix("180")
-                tofu_csmge_basis_root = f"artifacts/basis_csm_ge/seed{seed}_{tofu_csmge_basis_suffix}"
-                if wants("csm-ge") or wants("csmge"):
-                    for step in tofu_csmge_steps:
+                    tofu_cbddfb_steps = [step for step in tofu_cbddfb_steps if step in set(tofu_steps)]
+                    if tofu_cbddfb_steps and "180" not in tofu_cbddfb_steps and args.stage != "eval":
+                        tofu_cbddfb_steps.insert(0, "180")
+                tofu_cbddfb_basis_suffix = _tofu10_b6_cbddfb_suffix("180")
+                tofu_cbddfb_basis_root = f"artifacts/basis_cbd_dfb/seed{seed}_{tofu_cbddfb_basis_suffix}"
+                if wants("cbd-dfb") or wants("cbddfb"):
+                    for step in tofu_cbddfb_steps:
                         env = {
-                            "RUN_SUFFIX": _tofu10_b6_csmge_suffix(step),
+                            "RUN_SUFFIX": _tofu10_b6_cbddfb_suffix(step),
                             "TRAIN_MAX_STEPS": step,
                             "SAVE_STEPS_OVERRIDE": step,
                             "TOP_K": "192",
@@ -708,9 +708,9 @@ def _early_dispatch_repro(argv):
                             "LORA_DROPOUT": "0.05",
                         }
                         if step != "180":
-                            env["BASIS_ROOT_OVERRIDE"] = os.environ.get("BASIS_ROOT_OVERRIDE", tofu_csmge_basis_root)
+                            env["BASIS_ROOT_OVERRIDE"] = os.environ.get("BASIS_ROOT_OVERRIDE", tofu_cbddfb_basis_root)
                             env["SKIP_BASIS"] = os.environ.get("SKIP_BASIS", "1")
-                        add(f"B6 ToFU10 CSM-GE step {step}", ["blackbox", "tofu", "forget10", seed, "--top-k", "192"], first_gpu, env)
+                        add(f"B6 ToFU10 CBD-DFB step {step}", ["blackbox", "tofu", "forget10", seed, "--top-k", "192"], first_gpu, env)
                 for method in ["ga", "npo+gd"]:
                     if not wants(method):
                         continue
@@ -730,7 +730,7 @@ def _early_dispatch_repro(argv):
                             {"RUN_SUFFIX": _tofu10_b6_uld_suffix(step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step},
                         )
             if wants_target("wmdp"):
-                csmge_env = {
+                cbddfb_env = {
                     "TOP_K": "160",
                     "MAX_FORGET": "600",
                     "MAX_RETAIN": "1200",
@@ -753,20 +753,20 @@ def _early_dispatch_repro(argv):
                     "THRESH_TRUNCATE_MODE": "head_tail",
                     "EVAL_TRUNCATE_MODE": "head_tail",
                 }
-                if wants("csm-ge") or wants("csmge"):
-                    wmdp_csmge_steps = ["150", "50", "75", "100", "125", "175", "200"]
+                if wants("cbd-dfb") or wants("cbddfb"):
+                    wmdp_cbddfb_steps = ["150", "50", "75", "100", "125", "175", "200"]
                     if args.values:
-                        wmdp_csmge_steps = [step for step in wmdp_csmge_steps if step in set(wmdp_steps)]
-                        if wmdp_csmge_steps and "150" not in wmdp_csmge_steps and args.stage != "eval":
-                            wmdp_csmge_steps.insert(0, "150")
-                    wmdp_csmge_basis_suffix = _wmdp_b6_csmge_suffix("150")
-                    wmdp_csmge_basis_path = f"artifacts/basis_csm_ge/wmdp_seed{seed}_{wmdp_csmge_basis_suffix}/wmdp_basis/csm_ge_basis_wmdp_bio_cyber_chem_vs_mmlu.pkl"
-                    for step in wmdp_csmge_steps:
-                        env = dict(csmge_env)
-                        env.update({"RUN_SUFFIX": _wmdp_b6_csmge_suffix(step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step})
+                        wmdp_cbddfb_steps = [step for step in wmdp_cbddfb_steps if step in set(wmdp_steps)]
+                        if wmdp_cbddfb_steps and "150" not in wmdp_cbddfb_steps and args.stage != "eval":
+                            wmdp_cbddfb_steps.insert(0, "150")
+                    wmdp_cbddfb_basis_suffix = _wmdp_b6_cbddfb_suffix("150")
+                    wmdp_cbddfb_basis_path = f"artifacts/basis_cbd_dfb/wmdp_seed{seed}_{wmdp_cbddfb_basis_suffix}/wmdp_basis/cbd_dfb_basis_wmdp_bio_cyber_chem_vs_mmlu.pkl"
+                    for step in wmdp_cbddfb_steps:
+                        env = dict(cbddfb_env)
+                        env.update({"RUN_SUFFIX": _wmdp_b6_cbddfb_suffix(step), "TRAIN_MAX_STEPS": step, "SAVE_STEPS_OVERRIDE": step})
                         if step != "150":
-                            env["BASIS_PATH_OVERRIDE"] = os.environ.get("BASIS_PATH_OVERRIDE", wmdp_csmge_basis_path)
-                        add(f"B6 WMDP CSM-GE step {step}", ["blackbox", "wmdp", seed, "--top-k", "160"], first_gpu, env)
+                            env["BASIS_PATH_OVERRIDE"] = os.environ.get("BASIS_PATH_OVERRIDE", wmdp_cbddfb_basis_path)
+                        add(f"B6 WMDP CBD-DFB step {step}", ["blackbox", "wmdp", seed, "--top-k", "160"], first_gpu, env)
                 whitebox_env = {
                     "TRAIN_LR": "2e-5",
                     "TRAIN_BATCH_SIZE": "1",
@@ -1069,7 +1069,7 @@ def _early_dispatch_repro(argv):
                 "LORA_DROPOUT": os.environ.get("LORA_DROPOUT", "0.05"),
             })
         if family == "graybox" and method == "uld" and dataset == "tofu":
-            repro_env = os.environ.get("REPRO_CONDA_ENV", "uld_exact_20260424")
+            repro_env = os.environ.get("REPRO_CONDA_ENV", "cbd")
             if profile == "official":
                 env.update({
                     "REPRO_CONDA_ENV": repro_env,
@@ -1289,20 +1289,20 @@ def _early_dispatch_repro(argv):
     if family == "blackbox" and dataset == "tofu":
         split = rest[0]
         seed = args.seed or (rest[1] if len(rest) > 1 else "42")
-        top_k = args.top_k or paper_csm_ge_tofu_top_k(split)
+        top_k = args.top_k or paper_cbd_dfb_tofu_top_k(split)
         gpus = args.gpus or "0"
         env = _early_common_env(seed, gpus)
         env.update({"SPLITS": split, "TOFU_TARGET_SPLIT": split, "TOFU10_EXACT_RUN_SUFFIX": os.environ.get("RUN_SUFFIX", f"fixedentry_{split}_topk{top_k}")})
-        apply_csm_ge_tofu_defaults(env, split)
+        apply_cbd_dfb_tofu_defaults(env, split)
         env["TOP_K"] = top_k
-        return _early_run_or_print(["bash", "scripts/internal/run_csm_ge_seed_pipeline.sh", seed, gpus.split(",")[0], env["TOFU10_EXACT_RUN_SUFFIX"], env["UNLEARN_LOSS"]], env=env, dry_run=dry_run)
+        return _early_run_or_print(["bash", "scripts/internal/run_cbd_dfb_seed_pipeline.sh", seed, gpus.split(",")[0], env["TOFU10_EXACT_RUN_SUFFIX"], env["UNLEARN_LOSS"]], env=env, dry_run=dry_run)
 
     if family == "blackbox" and dataset == "wmdp":
         seed = args.seed or (rest[0] if rest else "42")
         top_k = args.top_k or "160"
         gpus = args.gpus or "0"
         env = _early_common_env(seed, gpus)
-        run_suffix = os.environ.get("RUN_SUFFIX", paper_wmdp_csm_ge_suffix("topk", top_k))
+        run_suffix = os.environ.get("RUN_SUFFIX", paper_wmdp_cbd_dfb_suffix("topk", top_k))
         wmdp_numeric_mode = os.environ.get("WMDP_NUMERIC_MODE", "paper")
         if wmdp_numeric_mode not in {"paper", "deterministic"}:
             raise SystemExit("WMDP_NUMERIC_MODE must be one of: paper, deterministic")
@@ -1376,7 +1376,7 @@ def _early_dispatch_repro(argv):
             return _early_run_or_print(cmd, env=env, dry_run=dry_run)
         if args.stage == "train":
             env["SKIP_FINAL_EVAL"] = os.environ.get("SKIP_FINAL_EVAL", "1")
-        return _early_run_or_print(["bash", "scripts/internal/run_csm_ge_wmdp_seed_pipeline.sh", seed, gpus.split(",")[0], env["WMDP_BLACKBOX_RUN_SUFFIX"], "gd+kl"], env=env, dry_run=dry_run)
+        return _early_run_or_print(["bash", "scripts/internal/run_cbd_dfb_wmdp_seed_pipeline.sh", seed, gpus.split(",")[0], env["WMDP_BLACKBOX_RUN_SUFFIX"], "gd+kl"], env=env, dry_run=dry_run)
 
     if family == "gpm" and dataset == "tofu":
         split = rest[0]
@@ -1471,7 +1471,7 @@ def _early_dispatch_repro(argv):
                 if target == "tofu10":
                     # The B1-B5 ToFU10 paper sweeps used the source-index
                     # table settings: basis forget=300, basis retain=2400,
-                    # train retain=2400, and full CSM-GE projection.
+                    # train retain=2400, and full CBD-DFB projection.
                     # Keep this scoped to `repro sweep` so the main A3
                     # blackbox default can still use its retain-400 row.
                     env["BASIS_MAX_FORGET"] = os.environ.get("BASIS_MAX_FORGET", "300")
@@ -1490,10 +1490,10 @@ def _early_dispatch_repro(argv):
                 else:
                     raise SystemExit(f"unsupported sweep: {sweep_kind} {target}")
             elif sweep_kind == "topk" and target == "wmdp":
-                env["RUN_SUFFIX"] = paper_wmdp_csm_ge_suffix(sweep_kind, value)
+                env["RUN_SUFFIX"] = paper_wmdp_cbd_dfb_suffix(sweep_kind, value)
                 cmd = [child_python, __file__, "repro", "blackbox", "wmdp", seed, "--top-k", value, "--gpus", args.gpus or "0"]
             elif target == "wmdp":
-                env["RUN_SUFFIX"] = paper_wmdp_csm_ge_suffix(sweep_kind, value)
+                env["RUN_SUFFIX"] = paper_wmdp_cbd_dfb_suffix(sweep_kind, value)
                 cmd = [child_python, __file__, "repro", "blackbox", "wmdp", seed, "--gpus", args.gpus or "0"]
                 if sweep_kind == "basis-retain":
                     env["BASIS_MAX_RETAIN"] = value
@@ -1543,7 +1543,7 @@ from uld.hfutil import ForgetTrainer, SimpleProfileCallback
 os.environ['TOKENIZERS_PARALLELISM'] = 'False'
 
 from uld.hfutil.gmp_trainer import GPMForgetTrainer
-from uld.hfutil.csm_ge_trainer import CSMGEForgetTrainer
+from uld.hfutil.cbd_dfb_trainer import CBDDFBForgetTrainer
 
 
 def _display_configs(configs):
@@ -2102,23 +2102,23 @@ def main(configs):
 
     custom_callbacks = [simpleprofilercallback]
 
-    enable_csm_ge = configs.get('enable_csm_ge', False)
-    csm_ge_basis_path = configs.get('csm_ge_basis_path', None)
-    csm_ge_eigval_weight = bool(configs.get('csm_ge_eigval_weight', False))
-    csm_ge_trust_region = bool(configs.get('csm_ge_trust_region', False))
-    csm_ge_trust_region_epsilon = float(configs.get('csm_ge_trust_region_epsilon', 1e-3))
-    csm_ge_trust_region_delta = float(configs.get('csm_ge_trust_region_delta', 1e-12))
-    csm_ge_project_forget_only = bool(configs.get('csm_ge_project_forget_only', False))
+    enable_cbd_dfb = configs.get('enable_cbd_dfb', False)
+    cbd_dfb_basis_path = configs.get('cbd_dfb_basis_path', None)
+    cbd_dfb_eigval_weight = bool(configs.get('cbd_dfb_eigval_weight', False))
+    cbd_dfb_trust_region = bool(configs.get('cbd_dfb_trust_region', False))
+    cbd_dfb_trust_region_epsilon = float(configs.get('cbd_dfb_trust_region_epsilon', 1e-3))
+    cbd_dfb_trust_region_delta = float(configs.get('cbd_dfb_trust_region_delta', 1e-12))
+    cbd_dfb_project_forget_only = bool(configs.get('cbd_dfb_project_forget_only', False))
     oracle_on_cpu = bool(configs.get('oracle_on_cpu', False))
     enable_gmp = configs.get('enable_gmp', False)
     gmp_basis_path = configs.get('gmp_basis_path', './gmp_basis/retain99_pca_basis.pkl')
     gmp_project_forget_only = bool(configs.get('gmp_project_forget_only', False))
 
-    if enable_csm_ge:
-        if not csm_ge_basis_path:
-            raise ValueError("enable_csm_ge=True 但未提供 csm_ge_basis_path")
-        print(f"🚀 使用 CSM-GE 训练器，基底路径: {csm_ge_basis_path}")
-        trainer = CSMGEForgetTrainer(
+    if enable_cbd_dfb:
+        if not cbd_dfb_basis_path:
+            raise ValueError("enable_cbd_dfb=True 但未提供 cbd_dfb_basis_path")
+        print(f"🚀 使用 CBD-DFB 训练器，基底路径: {cbd_dfb_basis_path}")
+        trainer = CBDDFBForgetTrainer(
             model=model,
             train_loss_function=loss_function,
             oracle_model=oracle_model,
@@ -2130,13 +2130,13 @@ def main(configs):
             callbacks=custom_callbacks,
             args=training_args,
             is_offset=is_offset,
-            csm_ge_basis_path=csm_ge_basis_path,
-            enable_csm_ge=True,
-            use_eigval_weight=csm_ge_eigval_weight,
-            trust_region=csm_ge_trust_region,
-            trust_region_epsilon=csm_ge_trust_region_epsilon,
-            trust_region_delta=csm_ge_trust_region_delta,
-            project_forget_only=csm_ge_project_forget_only,
+            cbd_dfb_basis_path=cbd_dfb_basis_path,
+            enable_cbd_dfb=True,
+            use_eigval_weight=cbd_dfb_eigval_weight,
+            trust_region=cbd_dfb_trust_region,
+            trust_region_epsilon=cbd_dfb_trust_region_epsilon,
+            trust_region_delta=cbd_dfb_trust_region_delta,
+            project_forget_only=cbd_dfb_project_forget_only,
             oracle_on_cpu=oracle_on_cpu,
         )
     elif enable_gmp:

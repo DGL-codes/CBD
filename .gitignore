@@ -161,11 +161,11 @@ cython_debug/
 outputs/
 outputs_*/
 ce_results/
-ce_results_csm_ge/
+ce_results_cbd_dfb/
 ce_results_verify_*/
 
 # --- repro upload excludes ---
-basis_csm_ge/
+basis_cbd_dfb/
 basis_721/
 outputs_trained_models/
 eval-method/
@@ -195,26 +195,26 @@ scripts/internal/run_tofu*_whitebox_step*.sh
 scripts/internal/run_wmdp_may3shape_probe.sh
 scripts/export_roc_data.py
 A1_A4_CROSS_METHOD_TABLE_*.md
-CSMGE_TOFU_FIXED_RERUN_*.md
+CBDDFB_TOFU_FIXED_RERUN_*.md
 STEP_STABILITY_COMPARISON_*.md
 WHITEBOX_TOFU_STEP_SEARCH_*.md
 
 # local backups (do not commit)
-CSM-GE_backup_docs_md_results_*/
+CBD-DFB_backup_docs_md_results_*/
 
 # local monitor/runtime noise
 codex_dev/monitor/
 *.pid
 
 # paper build artifacts
-paper-write/CSM-GE-upgraded-*.pdf
-paper-write/_work_csmge_upgrade/*.aux
-paper-write/_work_csmge_upgrade/*.bbl
-paper-write/_work_csmge_upgrade/*.blg
-paper-write/_work_csmge_upgrade/*.fdb_latexmk
-paper-write/_work_csmge_upgrade/*.fls
-paper-write/_work_csmge_upgrade/*.log
-paper-write/_work_csmge_upgrade/*.synctex.gz
+paper-write/CBD-DFB-upgraded-*.pdf
+paper-write/_work_cbddfb_upgrade/*.aux
+paper-write/_work_cbddfb_upgrade/*.bbl
+paper-write/_work_cbddfb_upgrade/*.blg
+paper-write/_work_cbddfb_upgrade/*.fdb_latexmk
+paper-write/_work_cbddfb_upgrade/*.fls
+paper-write/_work_cbddfb_upgrade/*.log
+paper-write/_work_cbddfb_upgrade/*.synctex.gz
 
 # reference repo cache noise
 references/**/__pycache__/

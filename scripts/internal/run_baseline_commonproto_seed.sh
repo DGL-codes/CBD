@@ -8,7 +8,7 @@ cd "${ROOT}"
 CONDA_SH="${CONDA_SH:-}"
 if [[ -f "${CONDA_SH}" ]]; then
   source "${CONDA_SH}"
-  conda activate "${REPRO_CONDA_ENV:-uld_exact_20260424}" >/dev/null 2>&1 || true
+  conda activate "${REPRO_CONDA_ENV:-cbd}" >/dev/null 2>&1 || true
 fi
 
 PY="${PYTHON:-python}"
@@ -112,7 +112,7 @@ WMDP_EVAL_TRUNCATE_MODE="${WMDP_EVAL_TRUNCATE_MODE:-left}"
 WMDP_EVAL_PROGRESS_EVERY="${WMDP_EVAL_PROGRESS_EVERY:-200}"
 WMDP_MODEL_PATH="${WMDP_MODEL_PATH:-HuggingFaceH4/zephyr-7b-beta}"
 WMDP_TOKENIZER_PATH="${WMDP_TOKENIZER_PATH:-HuggingFaceH4/zephyr-7b-beta}"
-ASSIST_MODEL_PATH="${ASSIST_MODEL_PATH:-TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T}"
+ASSIST_MODEL_PATH="${ASSIST_MODEL_PATH:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
 
 export TOKENIZERS_PARALLELISM=false
 export PYTHONUNBUFFERED=1
@@ -145,7 +145,7 @@ EVAL_ARGS_EXTRA=()
 
 case "${DATASET}" in
   tofu)
-    CFG_NAME="csm_ge_tinyllama_tofu"
+    CFG_NAME="cbd_dfb_tinyllama_tofu"
     MODEL_CFG="tofu-llama-2"
     TRAIN_ARGS_EXTRA+=(
       "data.dataset.name=${TOFU_DATA_NAME}"
@@ -154,7 +154,7 @@ case "${DATASET}" in
     )
     ;;
 	  wmdp)
-	    CFG_NAME="csm_ge_tinyllama_wmdp"
+	    CFG_NAME="cbd_dfb_tinyllama_wmdp"
 	    MODEL_CFG="zephyr7b"
 	    TRAIN_ARGS_EXTRA+=(
 	      "data.dataset.mmlu_retain_file=${WMDP_MMLU_RETAIN_FILE}"
@@ -392,7 +392,7 @@ EOF
 TRAIN_CMD=(
   "scripts/hf_forget_train.py"
   "--config-name" "${CFG_NAME}"
-  "enable_csm_ge=false"
+  "enable_cbd_dfb=false"
   "model=${MODEL_CFG}"
   "model_mode=${MODEL_MODE}"
   "unlearn_loss=${UNLEARN_LOSS}"

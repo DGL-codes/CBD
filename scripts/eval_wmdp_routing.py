@@ -3,7 +3,7 @@
 Evaluate WMDP + MMLU multiple-choice accuracy for:
   - base model (B)
   - original assistant (A0)
-  - CSM-GE routing system: if symKL(A0,A1) > threshold -> use A0 else use B
+  - CBD-DFB routing system: if symKL(A0,A1) > threshold -> use A0 else use B
 
 Routing score is symmetric KL at the next-token position after the prompt that
 ends with "Answer:".
@@ -743,8 +743,8 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=None)
     parser.add_argument("--threshold_json", default=None, help="Optional: load threshold from json and override --threshold")
     parser.add_argument("--base_model", default="locuslab/tofu_ft_llama2-7b")
-    parser.add_argument("--original_assist", default="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")
-    parser.add_argument("--assist_base_if_lora", default="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T")
+    parser.add_argument("--original_assist", default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    parser.add_argument("--assist_base_if_lora", default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
     parser.add_argument("--base_tokenizer", default=None, help="Optional tokenizer for base model")
     parser.add_argument("--assist_tokenizer", default=None, help="Optional tokenizer for assistant models")
     parser.add_argument("--base_device", default="cuda", help="Device for base model (e.g., cuda:0)")

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Full CSM-GE pipeline for one seed:
-# 1) Extract CSM-GE basis (forget vs retain) using gradient statistics
-# 2) Train A1 with CSM-GE projected gradients
+# Full CBD-DFB pipeline for one seed:
+# 1) Extract CBD-DFB basis (forget vs retain) using gradient statistics
+# 2) Train A1 with CBD-DFB projected gradients
 # 3) CE threshold + routing eval
 
 SEED="${1:?seed required}"
@@ -59,7 +59,7 @@ BASIS_ROOT_OVERRIDE="${BASIS_ROOT_OVERRIDE:-}"
 LORA_R="${LORA_R:-}"
 LORA_ALPHA="${LORA_ALPHA:-}"
 LORA_DROPOUT="${LORA_DROPOUT:-}"
-ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T}"
+ASSIST_MODEL="${ASSIST_MODEL:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
 TOFU_BASE_MODEL="${TOFU_BASE_MODEL:-locuslab/tofu_ft_llama2-7b}"
 TOFU_DATA_NAME="${TOFU_DATA_NAME:-${CBD_DATA_ROOT:-data}/TOFU}"
 TOFU_DATASET_NAME="${TOFU_DATASET_NAME:-${TOFU_DATA_NAME}}"
@@ -70,7 +70,7 @@ cd "$ROOT"
 CONDA_SH="${CONDA_SH:-}"
 if [[ -f "${CONDA_SH}" ]]; then
   source "${CONDA_SH}"
-  conda activate "${REPRO_CONDA_ENV:-uld_exact_20260424}" || true
+  conda activate "${REPRO_CONDA_ENV:-cbd}" || true
 fi
 
 DEFAULT_PY="python"
@@ -105,15 +105,15 @@ fi
 LOGROOT="artifacts/seed_runs/${RUN_TAG}"
 mkdir -p "${LOGROOT}"
 
-OUTMODELDIR="${OUTPUTMODELDIR_OVERRIDE:-artifacts/outputs_trained_models/csm_ge_tinyllama_${RUN_TAG}}"
-BASIS_ROOT="${BASIS_ROOT_OVERRIDE:-artifacts/basis_csm_ge/${RUN_TAG}}"
-CE_ROOT="artifacts/ce_results_csm_ge/${RUN_TAG}"
-EVAL_OUTROOT="artifacts/eval_outputs/tofu/double_assis_routing_csm_ge_${RUN_TAG}"
+OUTMODELDIR="${OUTPUTMODELDIR_OVERRIDE:-artifacts/outputs_trained_models/cbd_dfb_tinyllama_${RUN_TAG}}"
+BASIS_ROOT="${BASIS_ROOT_OVERRIDE:-artifacts/basis_cbd_dfb/${RUN_TAG}}"
+CE_ROOT="artifacts/ce_results_cbd_dfb/${RUN_TAG}"
+EVAL_OUTROOT="artifacts/eval_outputs/tofu/double_assis_routing_cbd_dfb_${RUN_TAG}"
 BASELOGDIR_OVERRIDE="${BASELOGDIR_OVERRIDE:-}"
 if [[ -n "${BASELOGDIR_OVERRIDE}" ]]; then
   BASELOGDIR_VALUE="${BASELOGDIR_OVERRIDE}"
 else
-  BASELOGDIR_VALUE="artifacts/outputs/csm_ge_log_${RUN_TAG}"
+  BASELOGDIR_VALUE="artifacts/outputs/cbd_dfb_log_${RUN_TAG}"
 fi
 
 mkdir -p "${OUTMODELDIR}" "${BASIS_ROOT}" "${CE_ROOT}" "${EVAL_OUTROOT}"
@@ -138,7 +138,7 @@ extract_basis() {
   local forget_split="$1"
   local retain_split="$2"
   local out_dir="$3"
-  log "Extract CSM-GE basis: forget=${forget_split} retain=${retain_split}"
+  log "Extract CBD-DFB basis: forget=${forget_split} retain=${retain_split}"
   local -a extra_args=()
   if [[ "${DATA_MODE}" == *"refuse"* ]]; then
     extra_args+=(--refuse_forget --refuse_answer "${REFUSE_ANSWER}")
@@ -152,7 +152,7 @@ extract_basis() {
   if [[ -n "${LORA_DROPOUT}" ]]; then
     extra_args+=(--lora_dropout "${LORA_DROPOUT}")
   fi
-  "${PY}" scripts/extract_csm_ge_basis.py \
+  "${PY}" scripts/extract_cbd_dfb_basis.py \
     --base_model_name "${ASSIST_MODEL}" \
     --seed "${LORA_SEED}" \
     --forget_split "${forget_split}" \
@@ -171,21 +171,21 @@ extract_basis() {
     >"${LOGROOT}/basis_${forget_split}.log" 2>&1
 }
 
-train_csm_ge() {
+train_cbd_dfb() {
   local forget_split="$1"
   local basis_path="$2"
   local project="$3"
-  log "Train CSM-GE: split=${forget_split} project=${project}"
+  log "Train CBD-DFB: split=${forget_split} project=${project}"
   local -a extra_args=()
   if [[ "${CSM_GE_TRUST_REGION}" == "1" ]]; then
     extra_args+=(
-      csm_ge_trust_region=true
-      csm_ge_trust_region_epsilon="${CSM_GE_TRUST_EPS}"
-      csm_ge_trust_region_delta="${CSM_GE_TRUST_DELTA}"
+      cbd_dfb_trust_region=true
+      cbd_dfb_trust_region_epsilon="${CSM_GE_TRUST_EPS}"
+      cbd_dfb_trust_region_delta="${CSM_GE_TRUST_DELTA}"
     )
   fi
   if [[ "${CSM_GE_PROJECT_FORGET_ONLY}" == "1" ]]; then
-    extra_args+=(csm_ge_project_forget_only=true)
+    extra_args+=(cbd_dfb_project_forget_only=true)
   fi
   if [[ -n "${TRAIN_RETAIN_NUM}" ]]; then
     extra_args+=(data_mode.retain_num="${TRAIN_RETAIN_NUM}")
@@ -209,13 +209,13 @@ train_csm_ge() {
     extra_args+=(++gradient_checkpointing="${GRADIENT_CHECKPOINTING}")
   fi
   "${PY}" scripts/hf_forget_train.py \
-    --config-name csm_ge_tinyllama_tofu \
+    --config-name cbd_dfb_tinyllama_tofu \
     data.dataset.split="${forget_split}" \
     data.dataset.name="${TOFU_DATASET_NAME}" \
     data_mode="${DATA_MODE}" \
-    enable_csm_ge=true \
-    csm_ge_basis_path="${basis_path}" \
-    csm_ge_eigval_weight="${CSM_GE_EIGVAL_WEIGHT}" \
+    enable_cbd_dfb=true \
+    cbd_dfb_basis_path="${basis_path}" \
+    cbd_dfb_eigval_weight="${CSM_GE_EIGVAL_WEIGHT}" \
     project="${project}" \
     seed="${SEED}" \
     lora_seed="${LORA_SEED}" \
@@ -319,7 +319,7 @@ log "==== [Seed ${SEED}] Stage 1: basis extraction ===="
 for forget_split in ${SPLITS}; do
   retain_split="${RETAIN_MAP[${forget_split}]}"
   basis_dir="${BASIS_ROOT}/${forget_split}_vs_${retain_split}"
-  basis_path="${basis_dir}/csm_ge_basis_${forget_split}_vs_${retain_split}.pkl"
+  basis_path="${basis_dir}/cbd_dfb_basis_${forget_split}_vs_${retain_split}.pkl"
   basis_wall_start="$(date +%s)"
   if [[ "${SKIP_BASIS}" == "1" && -f "${basis_path}" ]]; then
     log "Skip basis extraction (SKIP_BASIS=1): ${basis_path}"
@@ -333,15 +333,15 @@ done
 log "==== [Seed ${SEED}] Stage 2: train + CE + eval ===="
 for forget_split in ${SPLITS}; do
   retain_split="${RETAIN_MAP[${forget_split}]}"
-  basis_path="${BASIS_ROOT}/${forget_split}_vs_${retain_split}/csm_ge_basis_${forget_split}_vs_${retain_split}.pkl"
+  basis_path="${BASIS_ROOT}/${forget_split}_vs_${retain_split}/cbd_dfb_basis_${forget_split}_vs_${retain_split}.pkl"
   if [[ ! -f "${basis_path}" ]]; then
     echo "ERROR: basis not found ${basis_path}" | tee -a "${LOGROOT}/errors.log"
     exit 1
   fi
 
-  proj="csm_ge_${forget_split}_seed${SEED}"
+  proj="cbd_dfb_${forget_split}_seed${SEED}"
   train_wall_start="$(date +%s)"
-  train_csm_ge "${forget_split}" "${basis_path}" "${proj}"
+  train_cbd_dfb "${forget_split}" "${basis_path}" "${proj}"
   train_wall_end="$(date +%s)"
   echo "${train_wall_start} ${train_wall_end}" >"${LOGROOT}/timing_train_${forget_split}.txt"
 
@@ -412,7 +412,7 @@ if fpr is not None:
         tnr = 100.0 - float(fpr)
     except Exception:
         tnr = None
-print("CSM-GE classification summary:")
+print("CBD-DFB classification summary:")
 print("  threshold:", opt.get("best_threshold"))
 print("  accuracy :", opt.get("accuracy"))
 print("  TPR      :", opt.get("forgotten_identification_rate"))

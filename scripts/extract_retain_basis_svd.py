@@ -258,7 +258,7 @@ def main():
     parser.add_argument(
         "--base_model_name",
         type=str,
-        default="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
+        default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
         help="原始辅助模型名称",
     )
     parser.add_argument("--dataset", choices=["tofu", "wmdp_mmlu"], default="tofu")

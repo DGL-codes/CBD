@@ -27,7 +27,7 @@ from ..utils import NameTimer
 
 DEFAULT_TINYLLAMA_ASSIST_PATH = os.environ.get(
     "ASSIST_MODEL",
-    "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
+    "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
 )
 
 TRAIN_INIT_FUNCS = {
@@ -73,14 +73,14 @@ def _infer_double_assis_routing_score_paths(finetuned_assist_path):
 
     path_str = str(finetuned_assist_path)
     match = re.search(
-        r"artifacts/outputs_trained_models/csm_ge_tinyllama_(?P<run_tag>[^/]+)/hf_forget_train/.*/logs/(?P<project>csm_ge_[^/]+)/",
+        r"artifacts/outputs_trained_models/cbd_dfb_tinyllama_(?P<run_tag>[^/]+)/hf_forget_train/.*/logs/(?P<project>cbd_dfb_[^/]+)/",
         path_str,
     )
     if not match:
         return []
 
     repo_root = Path(__file__).resolve().parents[2]
-    ce_dir = repo_root / "artifacts" / "ce_results_csm_ge" / match.group("run_tag") / match.group("project")
+    ce_dir = repo_root / "artifacts" / "ce_results_cbd_dfb" / match.group("run_tag") / match.group("project")
     if not ce_dir.is_dir():
         return []
 

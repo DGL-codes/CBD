@@ -9,7 +9,7 @@ cd "${ROOT}"
 CONDA_SH="${CONDA_SH:-}"
 if [[ -f "${CONDA_SH}" ]]; then
   source "${CONDA_SH}"
-  conda activate "${REPRO_CONDA_ENV:-uld_exact_20260424}" >/dev/null 2>&1 || true
+  conda activate "${REPRO_CONDA_ENV:-cbd}" >/dev/null 2>&1 || true
 fi
 
 PY="${PYTHON:-python}"
@@ -130,7 +130,7 @@ OUTMODELDIR="artifacts/outputs_trained_models/whitebox_mp4/${RUN_TAG}"
 BASELOGDIR="artifacts/outputs/whitebox_mp4/${RUN_TAG}"
 mkdir -p "${LOGROOT}" "${OUTMODELDIR}" "${BASELOGDIR}"
 
-CFG_NAME="csm_ge_tinyllama_tofu"
+CFG_NAME="cbd_dfb_tinyllama_tofu"
 MODEL_MODE=""
 UNLEARN_LOSS=""
 DATA_MODE=""
@@ -229,7 +229,7 @@ TRAIN_LOG="${LOGROOT}/train.log"
 TRAIN_CMD=(
   "${TRAIN_SCRIPT}"
   "--config-name" "${CFG_NAME}"
-  "enable_csm_ge=false"
+  "enable_cbd_dfb=false"
   "model=${MODEL_CFG}"
   "model_mode=${MODEL_MODE}"
   "unlearn_loss=${UNLEARN_LOSS}"

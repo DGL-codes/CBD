@@ -1,5 +1,5 @@
 """
-CSM-GE Trainer
+CBD-DFB Trainer
 Project gradients onto discriminative subspace Q (generalized eigenvectors).
 """
 
@@ -9,9 +9,9 @@ from typing import Callable, Dict, Optional
 from .hf_trainers import ForgetTrainer
 
 
-class CSMGEForgetTrainer(ForgetTrainer):
+class CBDDFBForgetTrainer(ForgetTrainer):
     """
-    Use CSM-GE subspace Q to project gradients during training:
+    Use CBD-DFB subspace Q to project gradients during training:
         g <- Q Q^T g
     """
 
@@ -19,8 +19,8 @@ class CSMGEForgetTrainer(ForgetTrainer):
         self,
         model,
         train_loss_function: Callable,
-        csm_ge_basis_path: str,
-        enable_csm_ge: bool = True,
+        cbd_dfb_basis_path: str,
+        enable_cbd_dfb: bool = True,
         use_eigval_weight: bool = False,
         trust_region: bool = False,
         trust_region_epsilon: float = 1e-3,
@@ -29,7 +29,7 @@ class CSMGEForgetTrainer(ForgetTrainer):
         **kwargs,
     ):
         super().__init__(model=model, train_loss_function=train_loss_function, **kwargs)
-        self.enable_csm_ge = enable_csm_ge
+        self.enable_cbd_dfb = enable_cbd_dfb
         self.use_eigval_weight = bool(use_eigval_weight)
         self.trust_region = bool(trust_region)
         self.trust_region_epsilon = float(trust_region_epsilon)
@@ -38,10 +38,10 @@ class CSMGEForgetTrainer(ForgetTrainer):
         self._basis_device_cache = {}
         self._basis_key_cache = {}
         self._project_param_bindings = None
-        if self.enable_csm_ge:
-            print(f"\U0001f9ed 启用 CSM-GE 梯度投影，基底路径: {csm_ge_basis_path}")
-            self.csm_basis = self._load_csm_basis(csm_ge_basis_path)
-            print(f"\u2705 成功加载 {len(self.csm_basis)} 层 CSM-GE 基底")
+        if self.enable_cbd_dfb:
+            print(f"\U0001f9ed 启用 CBD-DFB 梯度投影，基底路径: {cbd_dfb_basis_path}")
+            self.csm_basis = self._load_csm_basis(cbd_dfb_basis_path)
+            print(f"\u2705 成功加载 {len(self.csm_basis)} 层 CBD-DFB 基底")
         else:
             self.csm_basis = None
 
@@ -61,9 +61,9 @@ class CSMGEForgetTrainer(ForgetTrainer):
                     basis_path = path
                     break
             else:
-                raise FileNotFoundError(f"无法找到 CSM-GE 基底文件: {possible_paths}")
+                raise FileNotFoundError(f"无法找到 CBD-DFB 基底文件: {possible_paths}")
 
-        print(f"\U0001f50d 从路径加载 CSM-GE 基底: {os.path.abspath(basis_path)}")
+        print(f"\U0001f50d 从路径加载 CBD-DFB 基底: {os.path.abspath(basis_path)}")
         with open(basis_path, 'rb') as f:
             basis_dict = pickle.load(f)
 
@@ -138,7 +138,7 @@ class CSMGEForgetTrainer(ForgetTrainer):
         return self._project_param_bindings
 
     def _project_gradient_csm(self, gradients: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        if not self.enable_csm_ge or self.csm_basis is None:
+        if not self.enable_cbd_dfb or self.csm_basis is None:
             return gradients
 
         projected = {}
@@ -203,7 +203,7 @@ class CSMGEForgetTrainer(ForgetTrainer):
         return Q_T, Q, w, retain_proj, n_retain
 
     def _apply_csm_projection(self):
-        if not self.enable_csm_ge or self.csm_basis is None:
+        if not self.enable_cbd_dfb or self.csm_basis is None:
             return
         lr = float(getattr(self.args, "learning_rate", 0.0) or 0.0)
         trust_term = None  # torch scalar on device
@@ -267,9 +267,9 @@ class CSMGEForgetTrainer(ForgetTrainer):
             return
         try:
             self.log({
-                "csm_ge/trust_scale": float(scale),
-                "csm_ge/trust_term": float(term_val),
-                "csm_ge/trust_n": float(trust_n),
+                "cbd_dfb/trust_scale": float(scale),
+                "cbd_dfb/trust_term": float(term_val),
+                "cbd_dfb/trust_n": float(trust_n),
             })
         except Exception:
             pass
